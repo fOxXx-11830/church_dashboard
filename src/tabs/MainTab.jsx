@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useAdmin } from '../AdminContext'
 import DOMPurify from 'dompurify'
-import { Clock, PartyPopper, Cake, BookOpen, Calendar, Edit3, PlusCircle } from 'lucide-react'
+import { Clock, PartyPopper, Cake, BookOpen, Calendar, Edit3, PlusCircle, GripVertical } from 'lucide-react'
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 
 // ─── 상수 및 유틸리티 ──────────────────────────────────────
 const DAY_KO = ['주일', '월', '화', '수', '목', '금', '토']
@@ -282,14 +283,48 @@ function MainTab() {
   }
 
   const fetchNews = async () => {
-    const { data } = await supabase.from('church_news').select('*').order('created_at', { ascending: false })
+    let { data, error } = await supabase.from('church_news').select('*').order('order_index', { ascending: true }).order('created_at', { ascending: false })
+    
+    // order_index 컬럼이 없을 경우 기존 방식(created_at 역순)으로 폴백
+    if (error && error.message.includes('order_index')) {
+      const fallback = await supabase.from('church_news').select('*').order('created_at', { ascending: false })
+      data = fallback.data
+    }
+    
     if (data) {
-      const sorted = [...data].sort((a, b) => {
-        if (a.category === 'birthday' && b.category !== 'birthday') return -1
-        if (a.category !== 'birthday' && b.category === 'birthday') return 1
-        return 0
-      })
-      setNews(sorted)
+      setNews(data)
+    }
+  }
+
+  const handleDragEnd = async (result) => {
+    if (!result.destination) return
+    const sourceIndex = result.source.index
+    const destIndex = result.destination.index
+    if (sourceIndex === destIndex) return
+
+    const newNews = Array.from(news)
+    const [removed] = newNews.splice(sourceIndex, 1)
+    newNews.splice(destIndex, 0, removed)
+
+    setNews(newNews) // UI 즉시 업데이트
+
+    if (isAdmin) {
+      try {
+        const updates = newNews.map((item, index) => ({
+          ...item,
+          order_index: index,
+        }))
+        const { error } = await supabase.from('church_news').upsert(updates)
+        if (error) {
+          if (error.message.includes('order_index')) {
+            alert('💡 순서를 저장하려면 Supabase church_news 테이블에 order_index (integer) 컬럼을 추가해주세요!')
+          } else {
+            console.error('순서 저장 오류:', error)
+          }
+        }
+      } catch (err) {
+        console.error(err)
+      }
     }
   }
 
@@ -358,38 +393,63 @@ function MainTab() {
             등록된 교회 소식이 없습니다.
           </div>
         ) : (
-          <div className="grid gap-4">
-            {news.map((item) => {
-              const cat = NEWS_CATEGORIES[item.category] || NEWS_CATEGORIES.notice
-              const d = new Date(item.created_at)
-              const dateStr = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`
-              
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => { if (isAdmin) setNewsModal({ isOpen: true, editData: item }) }}
-                  className={`group relative bg-white border border-stone-200 rounded-xl p-5 hover:shadow-md transition-all duration-200 ${isAdmin ? 'cursor-pointer hover:border-slate-300' : ''}`}
-                >
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center justify-between">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${cat.style}`}>
-                        {cat.label}
-                      </span>
-                      <div className="flex items-center gap-1 text-[11px] text-stone-500">
-                        <Calendar className="w-3 h-3" />
-                        {dateStr}
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <h3 className="font-bold text-slate-800 group-hover:text-amber-600 transition-colors line-clamp-1">
-                        {item.category === 'birthday' ? `🎉 ${DOMPurify.sanitize(item.title)}` : DOMPurify.sanitize(item.title)}
-                      </h3>
-                    </div>
-                  </div>
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="news-list">
+              {(provided) => (
+                <div {...provided.droppableProps} ref={provided.innerRef} className="grid gap-4">
+                  {news.map((item, index) => {
+                    const cat = NEWS_CATEGORIES[item.category] || NEWS_CATEGORIES.notice
+                    const d = new Date(item.created_at)
+                    const dateStr = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`
+                    
+                    return (
+                      <Draggable key={item.id} draggableId={item.id.toString()} index={index} isDragDisabled={!isAdmin}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            className={`group relative bg-white border border-stone-200 rounded-xl p-5 hover:shadow-md transition-all duration-200 ${isAdmin ? 'hover:border-slate-300' : ''} ${snapshot.isDragging ? 'shadow-lg ring-2 ring-[#eaddb1] z-50' : ''}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              {/* 드래그 핸들 (관리자용) */}
+                              {isAdmin && (
+                                <div {...provided.dragHandleProps} className="text-stone-300 hover:text-stone-500 cursor-grab active:cursor-grabbing p-1">
+                                  <GripVertical className="w-5 h-5" />
+                                </div>
+                              )}
+                              
+                              {/* 컨텐츠 영역 (클릭 시 수정) */}
+                              <div 
+                                className="flex-1 flex flex-col gap-3"
+                                onClick={() => { if (isAdmin) setNewsModal({ isOpen: true, editData: item }) }}
+                                style={{ cursor: isAdmin ? 'pointer' : 'default' }}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${cat.style}`}>
+                                    {cat.label}
+                                  </span>
+                                  <div className="flex items-center gap-1 text-[11px] text-stone-500">
+                                    <Calendar className="w-3 h-3" />
+                                    {dateStr}
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <h3 className="font-bold text-slate-800 group-hover:text-amber-600 transition-colors line-clamp-1">
+                                    {item.category === 'birthday' ? `🎉 ${DOMPurify.sanitize(item.title)}` : DOMPurify.sanitize(item.title)}
+                                  </h3>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </Draggable>
+                    )
+                  })}
+                  {provided.placeholder}
                 </div>
-              )
-            })}
-          </div>
+              )}
+            </Droppable>
+          </DragDropContext>
         )}
       </section>
 

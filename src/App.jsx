@@ -12,6 +12,7 @@ export const TABS = [
   { id: 'bible',    label: '성경읽기',   icon: '📖' },
   { id: 'qna',      label: '질문과 답변', icon: '💬' },
   { id: 'schedule', label: '교회일정',   icon: '📅' },
+  { id: 'bulletin', label: '주보 PDF',   icon: '📄' },
 ]
 
 function GlobalPinModal({ isOpen, onClose }) {
