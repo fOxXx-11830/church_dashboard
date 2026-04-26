@@ -367,6 +367,17 @@ function ScheduleTab() {
     fetchEvents()
   }, [])
 
+  // 다른 달(이전/다음 달) 일정 연하게 표시
+  const getEventClassNames = (arg) => {
+    const currentMonth = arg.view.currentStart.getMonth()
+    const eventMonth = arg.event.start?.getMonth()
+    
+    if (eventMonth !== undefined && eventMonth !== currentMonth) {
+      return ['opacity-40', 'hover:opacity-70']
+    }
+    return []
+  }
+
   // 빈 날짜 클릭 -> 등록 PIN 요구
   const handleDateClick = (info) => {
     setPinModal({ isOpen: true, action: 'add', payload: { startStr: info.dateStr } })
@@ -453,6 +464,7 @@ function ScheduleTab() {
           events={events}
           dateClick={handleDateClick}
           eventClick={handleEventClick}
+          eventClassNames={getEventClassNames}
           height="auto"
           dayMaxEvents={true}
         />
