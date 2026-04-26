@@ -93,7 +93,7 @@ function EventFormModal({ isOpen, onClose, onSaved, editData, initialStart }) {
       }
 
       if (editData) {
-        setTitle(editData.title || '')
+        setTitle(editData.extendedProps?.originalTitle || editData.title || '')
         setDescription(editData.extendedProps?.description || '')
         setCategory(editData.extendedProps?.category || 'event')
         const isAllDay = editData.allDay || false
@@ -192,8 +192,10 @@ function EventFormModal({ isOpen, onClose, onSaved, editData, initialStart }) {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">제목</label>
-            <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 구역장 모임" className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none" />
+            <label className="block text-xs font-semibold text-slate-600 mb-1">
+              {category === 'birthday' ? '이름' : '제목'}
+            </label>
+            <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder={category === 'birthday' ? "성함만 입력해 주세요 (예: 홍길동)" : "예: 구역장 모임"} className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none" />
           </div>
           
           <div className="flex items-center gap-2">
@@ -219,10 +221,12 @@ function EventFormModal({ isOpen, onClose, onSaved, editData, initialStart }) {
               <input type={allDay ? "date" : "datetime-local"} min={start} value={end} onChange={(e) => setEnd(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none" />
             </div>
           </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">상세 설명</label>
-            <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="일정에 대한 상세한 설명을 적어주세요." className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none resize-none" />
-          </div>
+          {category !== 'birthday' && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">상세 설명</label>
+              <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="일정에 대한 상세한 설명을 적어주세요." className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none resize-none" />
+            </div>
+          )}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-lg border border-stone-200 text-stone-600 text-sm font-medium hover:bg-stone-50">취소</button>
             <button type="submit" disabled={submitting} className="px-5 py-2.5 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50">{submitting ? '저장중...' : '저장하기'}</button>
@@ -318,13 +322,14 @@ function ScheduleTab() {
 
         return {
           id: ev.id,
-          title: ev.title,
+          title: ev.category === 'birthday' ? `🎉 ${ev.title}` : ev.title,
           start: ev.start,
           end: finalEnd,
           allDay: ev.all_day,
           backgroundColor: CATEGORY_COLORS[ev.category] || CATEGORY_COLORS.other,
           borderColor: CATEGORY_COLORS[ev.category] || CATEGORY_COLORS.other,
           extendedProps: {
+            originalTitle: ev.title, // 이모지 없는 원본 제목
             originalEnd: ev.end, // 실제 DB 상의 종료일 저장
             description: ev.description,
             category: ev.category
