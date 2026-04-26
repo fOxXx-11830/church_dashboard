@@ -1,17 +1,18 @@
 // src/firebase.js
 // Firebase 초기화 파일 - 환경 변수를 통해 민감한 정보를 보호합니다.
+// Vite 프로젝트에서는 import.meta.env를 사용합니다.
 
 import { initializeApp } from "firebase/app";
 
-// 환경 변수에서 Firebase 설정값을 불러옵니다.
-// 실제 값은 .env 파일에 저장되며, 이 파일은 절대 GitHub에 올라가지 않습니다.
+// .env 파일에서 VITE_ 접두어가 붙은 값만 Vite가 클라이언트에 노출합니다.
+// .env 파일 자체는 .gitignore에 의해 GitHub에 절대 올라가지 않습니다.
 const firebaseConfig = {
-  apiKey: process.env.VITE_FIREBASE_API_KEY,
-  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.VITE_FIREBASE_APP_ID,
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId:             import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 // Firebase 앱 초기화
