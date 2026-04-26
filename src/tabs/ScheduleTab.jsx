@@ -99,8 +99,9 @@ function EventFormModal({ isOpen, onClose, onSaved, editData, initialStart }) {
         const isAllDay = editData.allDay || false
         setAllDay(isAllDay)
         
+        const origEnd = editData.extendedProps?.originalEnd || editData.start
         setStart(formatDt(editData.start, isAllDay))
-        setEnd(formatDt(editData.end, isAllDay) || formatDt(editData.start, isAllDay))
+        setEnd(formatDt(origEnd, isAllDay))
       } else {
         setTitle('')
         setDescription('')
@@ -215,7 +216,7 @@ function EventFormModal({ isOpen, onClose, onSaved, editData, initialStart }) {
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">종료일시</label>
-              <input type={allDay ? "date" : "datetime-local"} value={end} onChange={(e) => setEnd(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none" />
+              <input type={allDay ? "date" : "datetime-local"} min={start} value={end} onChange={(e) => setEnd(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none" />
             </div>
           </div>
           <div>
@@ -263,8 +264,8 @@ function DetailModal({ isOpen, onClose, event, onEdit, onDelete }) {
               <span className="text-lg">🕒</span>
               <div>
                 <p>{formatTime(event.start, event.allDay)}</p>
-                {event.end && event.end.getTime() !== event.start.getTime() && (
-                  <p className="text-stone-400 mt-0.5">~ {formatTime(event.end, event.allDay)}</p>
+                {event.extendedProps?.originalEnd && new Date(event.extendedProps.originalEnd).getTime() !== event.start.getTime() && (
+                  <p className="text-stone-400 mt-0.5">~ {formatTime(event.extendedProps.originalEnd, event.allDay)}</p>
                 )}
               </div>
             </div>
@@ -305,19 +306,31 @@ function ScheduleTab() {
       const { data, error } = await supabase.from('church_events').select('*')
       if (error) throw error
       
-      const formattedEvents = data.map(ev => ({
-        id: ev.id,
-        title: ev.title,
-        start: ev.start,
-        end: ev.end,
-        allDay: ev.all_day, // DB의 all_day 값을 FullCalendar allDay 속성에 연결
-        backgroundColor: CATEGORY_COLORS[ev.category] || CATEGORY_COLORS.other,
-        borderColor: CATEGORY_COLORS[ev.category] || CATEGORY_COLORS.other,
-        extendedProps: {
-          description: ev.description,
-          category: ev.category
+      const formattedEvents = data.map(ev => {
+        let finalEnd = ev.end
+        // 하루종일 이벤트인 경우 FullCalendar는 end 날짜를 포함하지 않음(exclusive)
+        // 따라서 화면에 제대로 렌더링되게 하려면 끝나는 날짜에 1일을 더해주어야 함
+        if (ev.all_day && ev.end) {
+          const d = new Date(ev.end)
+          d.setDate(d.getDate() + 1)
+          finalEnd = d.toISOString().slice(0, 10)
         }
-      }))
+
+        return {
+          id: ev.id,
+          title: ev.title,
+          start: ev.start,
+          end: finalEnd,
+          allDay: ev.all_day,
+          backgroundColor: CATEGORY_COLORS[ev.category] || CATEGORY_COLORS.other,
+          borderColor: CATEGORY_COLORS[ev.category] || CATEGORY_COLORS.other,
+          extendedProps: {
+            originalEnd: ev.end, // 실제 DB 상의 종료일 저장
+            description: ev.description,
+            category: ev.category
+          }
+        }
+      })
       setEvents(formattedEvents)
     } catch (err) {
       console.error('일정 로딩 오류:', err)
