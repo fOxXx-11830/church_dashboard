@@ -2,6 +2,19 @@ import { useAdmin } from '../AdminContext'
 import { useState, useRef } from 'react'
 import { supabase } from '../supabase'
 
+// ─── 유틸: 다음 주일 날짜 구하기 (YYYY-MM-DD) ───
+function getUpcomingSunday() {
+  const now = new Date()
+  const day = now.getDay()
+  const diff = day === 0 ? 0 : 7 - day
+  const sunday = new Date(now)
+  sunday.setDate(now.getDate() + diff)
+  const yyyy = sunday.getFullYear()
+  const mm = String(sunday.getMonth() + 1).padStart(2, '0')
+  const dd = String(sunday.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
 export default function Header({ activeTab, setActiveTab, tabs }) {
   const { isAdmin } = useAdmin()
   const fileInputRef = useRef(null)
@@ -13,30 +26,55 @@ export default function Header({ activeTab, setActiveTab, tabs }) {
         fileInputRef.current?.click()
       } else {
         try {
-          const { data } = supabase.storage.from('bulletins').getPublicUrl('latest_bulletin.pdf')
+          // 1. Storage 버킷에서 가장 최근 업로드된 파일 찾기
+          const { data: listData, error: listError } = await supabase.storage
+            .from('bulletins')
+            .list('', { limit: 5, sortBy: { column: 'created_at', order: 'desc' } })
+            
+          if (listError || !listData || listData.length === 0) {
+            alert('아직 관리자가 주보를 업로드하지 않았거나 파일을 찾을 수 없습니다.')
+            return
+          }
+
+          // PDF 확장자를 가진 가장 최신 파일
+          const latestFile = listData.find(f => f.name.endsWith('.pdf'))
+          if (!latestFile) {
+            alert('아직 등록된 주보 PDF가 없습니다.')
+            return
+          }
+
+          // 2. 파일 URL 가져오기
+          const { data } = supabase.storage.from('bulletins').getPublicUrl(latestFile.name)
           if (data && data.publicUrl) {
+            // 캐시 방지용 타임스탬프 (모바일/PC 파일 다름 해결)
+            const timestamp = new Date(latestFile.updated_at).getTime()
+            const fetchUrl = `${data.publicUrl}?t=${timestamp}`
+
             try {
-              const response = await fetch(data.publicUrl)
+              const response = await fetch(fetchUrl)
               
               if (response.status === 404) {
                 alert('아직 관리자가 주보를 업로드하지 않았거나 파일을 찾을 수 없습니다.')
                 return
               }
-              
               if (!response.ok) throw new Error('Network Error')
               
               const blob = await response.blob()
               const downloadUrl = window.URL.createObjectURL(blob)
               const link = document.createElement('a')
               link.href = downloadUrl
-              link.download = '전주옛길교회_주보.pdf'
+              
+              // 저장될 파일명 생성 (예: 전주옛길교회_주보_2026-05-03.pdf)
+              let downloadName = latestFile.name.replace('bulletin_', '')
+              link.download = `전주옛길교회_주보_${downloadName}`
+              
               document.body.appendChild(link)
               link.click()
               link.remove()
               window.URL.revokeObjectURL(downloadUrl)
             } catch (fetchErr) {
-              // CORS 등의 문제로 fetch가 실패한 경우에만 직접 열기 시도
-              window.open(data.publicUrl, '_blank')
+              // CORS 에러 시 직접 열기 (여기서도 캐시 방지)
+              window.open(fetchUrl, '_blank')
             }
           }
         } catch (err) {
@@ -60,9 +98,11 @@ export default function Header({ activeTab, setActiveTab, tabs }) {
 
     setIsUploading(true)
     try {
+      const fileName = `bulletin_${getUpcomingSunday()}.pdf`
+      
       const { data, error } = await supabase.storage
         .from('bulletins')
-        .upload('latest_bulletin.pdf', file, { upsert: true, contentType: 'application/pdf' })
+        .upload(fileName, file, { upsert: true, contentType: 'application/pdf' })
       
       if (error) {
         if (error.message.includes('Bucket not found') || error.message.includes('not exist')) {
