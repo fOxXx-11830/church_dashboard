@@ -191,8 +191,11 @@ function QnATab() {
   const handleDelete = async (id) => {
     if (!window.confirm('정말 이 질문을 삭제하시겠습니까?')) return
     try {
-      const { error: dbError } = await supabase.from('questions').delete().eq('id', id)
+      const { data, error: dbError } = await supabase.from('questions').delete().eq('id', id).select()
       if (dbError) throw dbError
+      if (!data || data.length === 0) {
+        throw new Error('권한이 없거나 이미 삭제된 항목입니다. (Supabase RLS 설정을 확인해주세요)')
+      }
       fetchQuestions()
     } catch (err) {
       console.error('삭제 오류:', err)

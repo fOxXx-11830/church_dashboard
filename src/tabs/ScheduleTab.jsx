@@ -358,8 +358,11 @@ function ScheduleTab() {
   // 실제 삭제 실행
   const executeDelete = async (id) => {
     try {
-      const { error } = await supabase.from('church_events').delete().eq('id', id)
+      const { data, error } = await supabase.from('church_events').delete().eq('id', id).select()
       if (error) throw error
+      if (!data || data.length === 0) {
+        throw new Error('권한이 없거나 이미 삭제된 항목입니다. (Supabase RLS 설정을 확인해주세요)')
+      }
       setDetailModal({ isOpen: false, event: null })
       fetchEvents()
     } catch (err) {

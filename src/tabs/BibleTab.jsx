@@ -442,8 +442,11 @@ function BibleTab() {
   const handleDelete = async (id) => {
     if (!window.confirm('정말 이 말씀을 삭제하시겠습니까?')) return
     try {
-      const { error } = await supabase.from('daily_readings').delete().eq('id', id)
+      const { data, error } = await supabase.from('daily_readings').delete().eq('id', id).select()
       if (error) throw error
+      if (!data || data.length === 0) {
+        throw new Error('권한이 없거나 이미 삭제된 항목입니다. (Supabase RLS 설정을 확인해주세요)')
+      }
       fetchReadings() // 목록 새로고침
     } catch (err) {
       console.error('삭제 오류:', err)
