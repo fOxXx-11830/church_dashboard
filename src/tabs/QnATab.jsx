@@ -1,18 +1,10 @@
 import { useState, useEffect } from 'react'
-import {
-  collection,
-  addDoc,
-  onSnapshot,
-  query,
-  orderBy,
-  serverTimestamp,
-} from 'firebase/firestore'
-import { db } from '../firebase'
+import { supabase } from '../supabase'
 
 // ─── 날짜 포맷 ────────────────────────────────────────────
-function formatDate(ts) {
-  if (!ts) return '방금 전'
-  const d = ts.toDate()
+function formatDate(isoString) {
+  if (!isoString) return '방금 전'
+  const d = new Date(isoString)
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
 }
 
@@ -35,7 +27,7 @@ function AccordionItem({ item, isOpen, onToggle }) {
           {/* 질문 내용 한 줄 미리보기 */}
           <p className="font-medium text-slate-700 truncate">{item.content}</p>
           <p className="text-xs text-stone-400 mt-0.5">
-            {item.nickname} &nbsp;·&nbsp; {formatDate(item.createdAt)}
+            {item.nickname} &nbsp;·&nbsp; {formatDate(item.created_at)}
           </p>
         </div>
 
@@ -97,24 +89,46 @@ function QnATab() {
   const [openId, setOpenId]       = useState(null)
   const [error, setError]         = useState('')
 
-  // Firestore 실시간 구독 (createdAt 내림차순)
+  // Supabase 실시간 구독 및 데이터 로딩
   useEffect(() => {
-    const q = query(
-      collection(db, 'questions'),
-      orderBy('createdAt', 'desc')
-    )
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        setQuestions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
-        setLoading(false)
-      },
-      (err) => {
-        console.error('Firestore 읽기 오류:', err)
+    // 최초 데이터 가져오기
+    const fetchQuestions = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('questions')
+          .select('*')
+          .order('created_at', { ascending: false })
+        
+        if (error) throw error
+        setQuestions(data || [])
+      } catch (err) {
+        console.error('Supabase 읽기 오류:', err.message)
+      } finally {
         setLoading(false)
       }
-    )
-    return () => unsubscribe()
+    }
+
+    fetchQuestions()
+
+    // 실시간 구독 설정 (Insert 시 목록 갱신 등)
+    // 주의: Supabase 대시보드에서 questions 테이블의 Realtime 기능을 켜야 정상 동작합니다.
+    const channel = supabase
+      .channel('public:questions')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'questions' },
+        (payload) => {
+          console.log('Realtime 변화 감지!', payload)
+          // 간단하게 전체 목록을 다시 가져오거나, 로컬 state를 갱신할 수 있습니다.
+          // 여기서는 안전하게 최신 목록을 다시 fetch합니다.
+          fetchQuestions()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   // 질문 등록
@@ -127,19 +141,35 @@ function QnATab() {
 
     setSubmitting(true)
     try {
-      await addDoc(collection(db, 'questions'), {
-        nickname:  nickname.trim(),
-        content:   content.trim(),
-        createdAt: serverTimestamp(),
-        answer:    '',
-      })
+      const { error } = await supabase
+        .from('questions')
+        .insert([
+          {
+            nickname: nickname.trim(),
+            content: content.trim(),
+            // created_at은 DB 기본값(now())으로 자동 생성됩니다.
+            // answer도 생략 시 null 또는 기본값으로 들어갑니다.
+          }
+        ])
+
+      if (error) throw error
+
       setNickname('')
       setContent('')
+      
+      // 실시간 구독을 켜두지 않았을 경우를 대비해 직접 목록 갱신
+      const { data } = await supabase
+        .from('questions')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (data) setQuestions(data)
+
     } catch (err) {
-      console.error('등록 오류:', err)
+      console.error('등록 오류:', err.message)
       setError('등록 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setSubmitting(false)
     }
-    setSubmitting(false)
   }
 
   const toggleOpen = (id) => setOpenId(prev => prev === id ? null : id)
