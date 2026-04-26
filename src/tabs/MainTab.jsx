@@ -305,10 +305,7 @@ function MainTab() {
 
   return (
     <div className="space-y-8">
-      {/* 1. 주간 생일자 요약 (이번 주) */}
-      <WeeklyBirthdays birthdays={birthdays} />
-
-      {/* 2. 실시간 시계 */}
+      {/* 1. 실시간 시계 */}
       <LiveClock />
 
       {/* 3. 금주의 암송 말씀 (HeroBanner) */}
@@ -339,7 +336,7 @@ function MainTab() {
         </div>
       </section>
 
-      {/* 4. 교회 소식 (NewsFeed) */}
+      {/* 3. 교회 소식 (NewsFeed) */}
       <section className="space-y-4">
         <div className="flex items-center justify-between px-3">
           <h2 className="text-xl font-bold text-[#5c4d3c] tracking-tight">교회 소식</h2>
@@ -352,6 +349,9 @@ function MainTab() {
             </button>
           )}
         </div>
+
+        {/* 주간 생일자 요약 (이번 주) */}
+        <WeeklyBirthdays birthdays={birthdays} />
         
         {news.length === 0 ? (
           <div className="bg-white rounded-xl border border-stone-200 p-8 text-center text-stone-400 text-sm">
