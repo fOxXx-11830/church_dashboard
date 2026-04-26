@@ -4,6 +4,7 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import { supabase } from '../supabase'
 import { useAdmin } from '../AdminContext'
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 
 // ─── 카테고리 색상 및 레이블 ──────────────────────────────────────────
 const CATEGORY_COLORS = {
@@ -378,18 +379,54 @@ function ScheduleTab() {
     }
   }
 
+  // 모바일 뷰 용 달력 상태 관리
+  const [currentMonth, setCurrentMonth] = useState(new Date())
+
+  const handlePrevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))
+  const handleNextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))
+
+  // 모바일 리스트 뷰용 데이터 필터링
+  const currentMonthEvents = events.filter(ev => {
+    const d = new Date(ev.start)
+    return d.getFullYear() === currentMonth.getFullYear() && d.getMonth() === currentMonth.getMonth()
+  })
+
+  // 날짜별 그룹화
+  const eventsByDate = currentMonthEvents.reduce((acc, ev) => {
+    const d = new Date(ev.start)
+    // UTC offset 조정된 날짜 문자열 생성
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+    const dateStr = d.toISOString().slice(0, 10)
+    if (!acc[dateStr]) acc[dateStr] = []
+    acc[dateStr].push(ev)
+    return acc
+  }, {})
+
+  const sortedDates = Object.keys(eventsByDate).sort()
+
+  const handleMobileEventClick = (ev) => {
+    setDetailModal({ 
+      isOpen: true, 
+      event: {
+        ...ev,
+        start: new Date(ev.start),
+        end: ev.end ? new Date(ev.end) : null
+      } 
+    })
+  }
+
   return (
     <div className="space-y-6">
-      {/* 타이틀 및 범례 */}
+      {/* 타이틀 및 범례 (공통) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-700 flex items-center gap-2">
+          <h2 className="text-xl font-bold text-[#5c4d3c] flex items-center gap-2">
             <span className="text-amber-500">📅</span> 교회 일정
           </h2>
-          <p className="text-stone-400 text-sm mt-1">우리 교회의 주요 행사와 모임을 확인하세요</p>
+          <p className="text-[#a18c73] text-sm mt-1">우리 교회의 주요 행사와 모임을 확인하세요</p>
         </div>
         
-        <div className="flex flex-wrap gap-3 text-xs font-medium text-stone-600 bg-white px-4 py-2 rounded-xl border border-stone-200 shadow-sm">
+        <div className="flex flex-wrap gap-3 text-xs font-medium text-stone-600 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl border border-[#eaddb1] shadow-sm">
           {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
             <span key={k} className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[k] }} />
@@ -399,8 +436,77 @@ function ScheduleTab() {
         </div>
       </div>
 
-      {/* 달력 영역 */}
-      <div className="bg-white p-4 md:p-6 rounded-2xl border border-stone-200 shadow-sm overflow-hidden custom-calendar-wrapper">
+      {/* ─── 모바일 리스트 뷰 (lg 미만) ─── */}
+      <div className="block lg:hidden space-y-6">
+        <div className="flex items-center justify-between bg-white/80 backdrop-blur-sm rounded-[1.5rem] p-4 border border-[#eaddb1]/60 shadow-sm">
+          <button onClick={handlePrevMonth} className="p-2 text-[#a18c73] hover:bg-[#fbf7da] rounded-full transition-colors active:scale-95">
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          <div className="text-xl font-bold text-[#5c4d3c]">
+            {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월
+          </div>
+          <button onClick={handleNextMonth} className="p-2 text-[#a18c73] hover:bg-[#fbf7da] rounded-full transition-colors active:scale-95">
+            <ChevronRight className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="space-y-5 pb-20">
+          {sortedDates.length === 0 ? (
+            <div className="bg-white/50 backdrop-blur-sm rounded-[1.5rem] p-10 text-center border border-[#eaddb1]/50 text-[#a18c73]">
+              이번 달에 등록된 일정이 없습니다.
+            </div>
+          ) : (
+            sortedDates.map(dateStr => {
+              const d = new Date(dateStr)
+              const dayName = ['일', '월', '화', '수', '목', '금', '토'][d.getDay()]
+              const isSunday = d.getDay() === 0
+              
+              return (
+                <div key={dateStr} className="bg-white/90 backdrop-blur-sm rounded-[1.25rem] border border-[#eaddb1]/80 shadow-sm overflow-hidden">
+                  <div className={`px-5 py-3 border-b border-[#eaddb1]/50 flex justify-between items-center ${isSunday ? 'bg-rose-50/50' : 'bg-[#fbf7da]/30'}`}>
+                    <span className={`font-bold ${isSunday ? 'text-rose-500' : 'text-[#8a7258]'}`}>
+                      {d.getDate()}일 ({dayName})
+                    </span>
+                  </div>
+                  <div className="divide-y divide-[#eaddb1]/30">
+                    {eventsByDate[dateStr].map(ev => {
+                      const catLabel = CATEGORY_LABELS[ev.extendedProps.category] || '기타'
+                      const catColor = CATEGORY_COLORS[ev.extendedProps.category] || CATEGORY_COLORS.other
+                      return (
+                        <div 
+                          key={ev.id} 
+                          onClick={() => handleMobileEventClick(ev)} 
+                          className="p-5 flex items-center justify-between active:bg-stone-50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: catColor }} />
+                            <span className="text-[#5c4d3c] font-medium leading-snug">
+                              {ev.title}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+
+        {/* 모바일 하단 플로팅 버튼 (관리자 전용) */}
+        {isAdmin && (
+          <button
+            onClick={() => setFormModal({ isOpen: true, editData: null, startStr: '' })}
+            className="fixed bottom-24 right-6 w-14 h-14 bg-[#8cc4d8] text-white rounded-full shadow-lg flex items-center justify-center z-40 active:scale-95 transition-transform"
+          >
+            <Plus className="w-7 h-7" />
+          </button>
+        )}
+      </div>
+
+      {/* ─── PC 그리드 뷰 (lg 이상) ─── */}
+      <div className="hidden lg:block bg-white/80 backdrop-blur-sm p-4 md:p-6 rounded-[2rem] border border-[#eaddb1]/60 shadow-sm overflow-hidden custom-calendar-wrapper">
         <FullCalendar
           plugins={[dayGridPlugin, interactionPlugin]}
           initialView="dayGridMonth"
