@@ -79,57 +79,93 @@ function EventFormModal({ isOpen, onClose, onSaved, editData, initialStart }) {
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')
   const [category, setCategory] = useState('event')
+  const [allDay, setAllDay] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
+      const formatDt = (dtStr, isAllDay) => {
+        if (!dtStr) return ''
+        const d = new Date(dtStr)
+        d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+        const iso = d.toISOString()
+        return isAllDay ? iso.slice(0, 10) : iso.slice(0, 16)
+      }
+
       if (editData) {
         setTitle(editData.title || '')
         setDescription(editData.extendedProps?.description || '')
         setCategory(editData.extendedProps?.category || 'event')
+        const isAllDay = editData.allDay || false
+        setAllDay(isAllDay)
         
-        // datetime-local 형식으로 변환 (YYYY-MM-DDTHH:mm)
-        const formatDt = (dtStr) => {
-          if (!dtStr) return ''
-          const d = new Date(dtStr)
-          // local timezone offset adjustment
-          d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
-          return d.toISOString().slice(0, 16)
-        }
-        setStart(formatDt(editData.start))
-        setEnd(formatDt(editData.end) || formatDt(editData.start))
+        setStart(formatDt(editData.start, isAllDay))
+        setEnd(formatDt(editData.end, isAllDay) || formatDt(editData.start, isAllDay))
       } else {
         setTitle('')
         setDescription('')
         setCategory('event')
-        // initialStart가 'YYYY-MM-DD' 형식이면 시간 추가
-        const st = initialStart.includes('T') ? initialStart.slice(0, 16) : `${initialStart}T09:00`
-        setStart(st)
-        setEnd(st)
+        
+        // 날짜 클릭으로 생성 시 기본적으로 클릭한 날짜가 넘어옴
+        const isDateOnly = !initialStart.includes('T')
+        setAllDay(isDateOnly)
+
+        if (isDateOnly) {
+          setStart(initialStart)
+          setEnd(initialStart)
+        } else {
+          const st = initialStart.slice(0, 16)
+          setStart(st)
+          setEnd(st)
+        }
       }
     }
   }, [isOpen, editData, initialStart])
+
+  // 하루종일 토글 시 포맷 변경
+  const handleAllDayChange = (e) => {
+    const checked = e.target.checked
+    setAllDay(checked)
+    if (checked) {
+      if (start) setStart(start.slice(0, 10))
+      if (end) setEnd(end.slice(0, 10))
+    } else {
+      if (start && start.length === 10) setStart(`${start}T09:00`)
+      if (end && end.length === 10) setEnd(`${end}T10:00`)
+    }
+  }
 
   if (!isOpen) return null
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!title.trim() || !start) return
-    setSubmitting(true)
 
+    const startDate = new Date(start)
+    let endDate = end ? new Date(end) : startDate
+
+    if (endDate < startDate) {
+      alert('종료 날짜/시간이 시작 날짜/시간보다 빠를 수 없습니다.')
+      return
+    }
+
+    setSubmitting(true)
     try {
       const payload = {
         title: title.trim(),
         description: description.trim(),
-        start: new Date(start).toISOString(),
-        end: end ? new Date(end).toISOString() : new Date(start).toISOString(),
-        category
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
+        category,
+        all_day: allDay
       }
 
       if (editData) {
-        await supabase.from('church_events').update(payload).eq('id', editData.id)
+        const { error } = await supabase.from('church_events').update(payload).eq('id', editData.id)
+        if (error) throw error
       } else {
-        await supabase.from('church_events').insert([payload])
+        const { error } = await supabase.from('church_events').insert([payload])
+        if (error) throw error
       }
       onSaved()
       onClose()
@@ -143,7 +179,7 @@ function EventFormModal({ isOpen, onClose, onSaved, editData, initialStart }) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
         <h3 className="text-lg font-bold text-slate-800 mb-4">{editData ? '일정 수정' : '새 일정 등록'}</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -158,14 +194,28 @@ function EventFormModal({ isOpen, onClose, onSaved, editData, initialStart }) {
             <label className="block text-xs font-semibold text-slate-600 mb-1">제목</label>
             <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 구역장 모임" className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none" />
           </div>
+          
+          <div className="flex items-center gap-2">
+            <input 
+              type="checkbox" 
+              id="allDayCheck" 
+              checked={allDay} 
+              onChange={handleAllDayChange}
+              className="w-4 h-4 text-amber-500 rounded border-stone-300 focus:ring-amber-500"
+            />
+            <label htmlFor="allDayCheck" className="text-sm font-semibold text-slate-700 cursor-pointer">
+              하루 종일
+            </label>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">시작일시</label>
-              <input type="datetime-local" required value={start} onChange={(e) => setStart(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none" />
+              <input type={allDay ? "date" : "datetime-local"} required value={start} onChange={(e) => setStart(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">종료일시</label>
-              <input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none" />
+              <input type={allDay ? "date" : "datetime-local"} value={end} onChange={(e) => setEnd(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none" />
             </div>
           </div>
           <div>
@@ -190,12 +240,12 @@ function DetailModal({ isOpen, onClose, event, onEdit, onDelete }) {
   const catColor = CATEGORY_COLORS[event.extendedProps?.category] || CATEGORY_COLORS.other
   
   // 날짜 포맷
-  const formatTime = (dateStr) => {
+  const formatTime = (dateStr, isAllDay) => {
     if (!dateStr) return ''
-    return new Date(dateStr).toLocaleString('ko-KR', {
-      year: 'numeric', month: 'long', day: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    })
+    const opts = isAllDay 
+      ? { year: 'numeric', month: 'long', day: 'numeric' }
+      : { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }
+    return new Date(dateStr).toLocaleString('ko-KR', opts)
   }
 
   return (
@@ -212,8 +262,10 @@ function DetailModal({ isOpen, onClose, event, onEdit, onDelete }) {
             <div className="flex items-start gap-3 text-sm text-slate-600">
               <span className="text-lg">🕒</span>
               <div>
-                <p>{formatTime(event.start)}</p>
-                {event.end && event.end !== event.start && <p className="text-stone-400 mt-0.5">~ {formatTime(event.end)}</p>}
+                <p>{formatTime(event.start, event.allDay)}</p>
+                {event.end && event.end.getTime() !== event.start.getTime() && (
+                  <p className="text-stone-400 mt-0.5">~ {formatTime(event.end, event.allDay)}</p>
+                )}
               </div>
             </div>
             {event.extendedProps?.description && (
@@ -258,8 +310,9 @@ function ScheduleTab() {
         title: ev.title,
         start: ev.start,
         end: ev.end,
+        allDay: ev.all_day, // DB의 all_day 값을 FullCalendar allDay 속성에 연결
         backgroundColor: CATEGORY_COLORS[ev.category] || CATEGORY_COLORS.other,
-        borderColor: 'transparent',
+        borderColor: CATEGORY_COLORS[ev.category] || CATEGORY_COLORS.other,
         extendedProps: {
           description: ev.description,
           category: ev.category
@@ -299,13 +352,14 @@ function ScheduleTab() {
 
   // 실제 삭제 실행
   const executeDelete = async (id) => {
-    if (!window.confirm('정말 이 일정을 삭제하시겠습니까?')) return
     try {
-      await supabase.from('church_events').delete().eq('id', id)
+      const { error } = await supabase.from('church_events').delete().eq('id', id)
+      if (error) throw error
       setDetailModal({ isOpen: false, event: null })
       fetchEvents()
     } catch (err) {
       console.error('삭제 오류:', err)
+      alert('일정 삭제 중 오류가 발생했습니다.')
     }
   }
 
@@ -405,8 +459,7 @@ function ScheduleTab() {
           --fc-button-hover-border-color: #94a3b8;
           --fc-button-active-bg-color: #e2e8f0;
           --fc-button-active-border-color: #94a3b8;
-          --fc-event-bg-color: #3b82f6;
-          --fc-event-border-color: transparent;
+          /* --fc-event-bg-color 제거하여 개별 이벤트의 backgroundColor 속성이 먹히도록 함 */
           --fc-today-bg-color: #fef3c7;
           font-family: inherit;
         }
