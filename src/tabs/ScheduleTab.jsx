@@ -95,8 +95,9 @@ function EventFormModal({ isOpen, onClose, onSaved, editData, initialStart }) {
       if (editData) {
         setTitle(editData.extendedProps?.originalTitle || editData.title || '')
         setDescription(editData.extendedProps?.description || '')
-        setCategory(editData.extendedProps?.category || 'event')
-        const isAllDay = editData.allDay || false
+        const cat = editData.extendedProps?.category || 'event'
+        setCategory(cat)
+        const isAllDay = cat === 'birthday' ? true : (editData.allDay || false)
         setAllDay(isAllDay)
         
         const origEnd = editData.extendedProps?.originalEnd || editData.start
@@ -145,7 +146,9 @@ function EventFormModal({ isOpen, onClose, onSaved, editData, initialStart }) {
     const startDate = new Date(start)
     let endDate = end ? new Date(end) : startDate
 
-    if (endDate < startDate) {
+    if (category === 'birthday') {
+      endDate = startDate
+    } else if (endDate < startDate) {
       alert('종료 날짜/시간이 시작 날짜/시간보다 빠를 수 없습니다.')
       return
     }
@@ -185,7 +188,19 @@ function EventFormModal({ isOpen, onClose, onSaved, editData, initialStart }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">카테고리</label>
-            <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none">
+            <select 
+              value={category} 
+              onChange={(e) => {
+                const val = e.target.value
+                setCategory(val)
+                if (val === 'birthday') {
+                  setAllDay(true)
+                  if (start && start.length > 10) setStart(start.slice(0, 10))
+                  if (end && end.length > 10) setEnd(end.slice(0, 10))
+                }
+              }} 
+              className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none"
+            >
               {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
                 <option key={k} value={k}>{v}</option>
               ))}
@@ -203,23 +218,28 @@ function EventFormModal({ isOpen, onClose, onSaved, editData, initialStart }) {
               type="checkbox" 
               id="allDayCheck" 
               checked={allDay} 
+              disabled={category === 'birthday'}
               onChange={handleAllDayChange}
-              className="w-4 h-4 text-amber-500 rounded border-stone-300 focus:ring-amber-500"
+              className="w-4 h-4 text-amber-500 rounded border-stone-300 focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
-            <label htmlFor="allDayCheck" className="text-sm font-semibold text-slate-700 cursor-pointer">
+            <label htmlFor="allDayCheck" className={`text-sm font-semibold text-slate-700 ${category === 'birthday' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
               하루 종일
             </label>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className={`grid gap-3 ${category === 'birthday' ? 'grid-cols-1' : 'grid-cols-2'}`}>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">시작일시</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                {category === 'birthday' ? '생일 날짜' : '시작일시'}
+              </label>
               <input type={allDay ? "date" : "datetime-local"} required value={start} onChange={(e) => setStart(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none" />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">종료일시</label>
-              <input type={allDay ? "date" : "datetime-local"} min={start} value={end} onChange={(e) => setEnd(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none" />
-            </div>
+            {category !== 'birthday' && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">종료일시</label>
+                <input type={allDay ? "date" : "datetime-local"} min={start} value={end} onChange={(e) => setEnd(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none" />
+              </div>
+            )}
           </div>
           {category !== 'birthday' && (
             <div>
