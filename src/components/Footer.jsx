@@ -13,9 +13,9 @@ function Footer({ onAdminLoginClick }) {
           <p className="flex items-center justify-center gap-2">
             목사 <span className="text-[#a18c73] font-black text-lg tracking-[0.2em] ml-1">황 철 민</span>
           </p>
-          <p className="flex items-center justify-center gap-1.5 break-keep">
+          <p className="flex items-center justify-center gap-1.5 px-2">
             <MapPin className="w-3.5 h-3.5 text-[#8cc4d8] shrink-0" />
-            <span>전주시 덕진구 견훤로 247 송동물센터 3층 (인후1가 448-33)</span>
+            <span className="text-xs sm:text-sm break-keep md:break-normal">전주시 덕진구 견훤로 247 송동물센터 3층 (인후1가 448-33)</span>
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 pt-1">
             <p className="flex items-center gap-1.5">
