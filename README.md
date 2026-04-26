@@ -73,4 +73,4 @@ VITE_FIREBASE_APP_ID=
 
 ## 📄 License
 
-© 2026 열린교회. All rights reserved.
+© 2026 전주옛길교회. All rights reserved.
