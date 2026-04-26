@@ -54,6 +54,16 @@ function LiveClock() {
           {timeStr}
         </time>
       </div>
+
+      <div className="mt-7 flex flex-col items-center px-4 md:px-8 w-full max-w-xl mx-auto">
+        <div className="w-12 h-px bg-gradient-to-r from-transparent via-[#c0a080]/30 to-transparent mb-4" />
+        <p className="text-[#8a7258] font-serif text-sm md:text-base leading-[1.8] text-center break-keep tracking-wide opacity-90">
+          "여호와께서 이와 같이 말씀하시되 너희는 길에서 서서 보며 옛적 길 곧 선한 길이 어디인지 알아보고 그리로 가라 너희 심령이 평강을 얻으리라"
+        </p>
+        <p className="text-[#b59e84] text-xs md:text-sm mt-3 font-medium tracking-widest">
+          — 예레미야 6장 16절 —
+        </p>
+      </div>
     </div>
   )
 }
