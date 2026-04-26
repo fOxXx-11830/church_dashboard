@@ -10,22 +10,18 @@ function formatDate(isoString) {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
 }
 
-// ─── 관리자: 답변/수정 모달 ────────────────────────────────
-function AdminQnAModal({ isOpen, onClose, onSaved, editData, mode }) {
+// ─── 관리자: 질문 수정 모달 ────────────────────────────────
+function AdminEditModal({ isOpen, onClose, onSaved, editData }) {
   const [content, setContent] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (isOpen) {
-      if (mode === 'answer') {
-        setContent(editData?.answer || '')
-      } else if (mode === 'edit') {
-        setContent(editData?.content || '')
-      }
+      setContent(editData?.content || '')
       setError('')
     }
-  }, [isOpen, editData, mode])
+  }, [isOpen, editData])
 
   if (!isOpen) return null
 
@@ -38,14 +34,11 @@ function AdminQnAModal({ isOpen, onClose, onSaved, editData, mode }) {
 
     setSubmitting(true)
     try {
-      const payload = mode === 'answer' ? { answer: content } : { content: content }
-      const { error: dbError } = await supabase.from('questions').update(payload).eq('id', editData.id)
-      
+      const { error: dbError } = await supabase.from('questions').update({ content }).eq('id', editData.id)
       if (dbError) throw dbError
       onSaved()
       onClose()
     } catch (err) {
-      console.error(err)
       setError(`저장 중 오류가 발생했습니다: ${err.message}`)
     } finally {
       setSubmitting(false)
@@ -55,16 +48,14 @@ function AdminQnAModal({ isOpen, onClose, onSaved, editData, mode }) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
-        <h3 className="text-lg font-bold text-slate-800 mb-4">
-          {mode === 'answer' ? '답변 작성/수정' : '질문 수정'}
-        </h3>
+        <h3 className="text-lg font-bold text-slate-800 mb-4">질문 내용 수정</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <textarea
               rows={5}
               value={content}
               onChange={(e) => { setContent(e.target.value); setError(''); }}
-              placeholder={mode === 'answer' ? "답변을 입력하세요..." : "질문을 수정하세요..."}
+              placeholder="질문을 수정하세요..."
               className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none resize-none"
             />
           </div>
@@ -82,8 +73,29 @@ function AdminQnAModal({ isOpen, onClose, onSaved, editData, mode }) {
 }
 
 // ─── 아코디언 아이템 ──────────────────────────────────────
-function AccordionItem({ item, isOpen, onToggle, onEdit, onDelete, onAnswer }) {
+function AccordionItem({ item, isOpen, onToggle, onEdit, onDelete, onReply, onDeleteReply }) {
   const { isAdmin } = useAdmin()
+  const [replyNick, setReplyNick] = useState(isAdmin ? '황철민 목사' : '')
+  const [replyContent, setReplyContent] = useState('')
+  const [replying, setReplying] = useState(false)
+
+  // item.answers 렌더링 (없을 경우 빈 배열)
+  const answers = item.answers || []
+
+  // 관리자로 전환 시 닉네임 자동 세팅
+  useEffect(() => {
+    if (isAdmin) setReplyNick('황철민 목사')
+  }, [isAdmin])
+
+  const handleReplySubmit = async (e) => {
+    e.preventDefault()
+    if (!replyNick.trim() || !replyContent.trim()) return
+    setReplying(true)
+    await onReply(item.id, replyNick, replyContent, isAdmin)
+    setReplying(false)
+    if (!isAdmin) setReplyNick('')
+    setReplyContent('')
+  }
 
   return (
     <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
@@ -94,9 +106,16 @@ function AccordionItem({ item, isOpen, onToggle, onEdit, onDelete, onAnswer }) {
         <span className="shrink-0 mt-0.5 w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center">Q</span>
         <div className="flex-1 min-w-0">
           <p className="font-medium text-slate-700 truncate">{item.content}</p>
-          <p className="text-xs text-stone-400 mt-0.5">
-            {item.nickname} &nbsp;·&nbsp; {formatDate(item.created_at)}
-          </p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-xs text-stone-400">
+              {item.nickname} &nbsp;·&nbsp; {formatDate(item.created_at)}
+            </p>
+            {(answers.length > 0 || item.answer) && (
+              <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md font-medium">
+                답변 {answers.length + (item.answer ? 1 : 0)}
+              </span>
+            )}
+          </div>
         </div>
         <span className={`shrink-0 text-stone-400 mt-0.5 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>▾</span>
       </button>
@@ -104,27 +123,86 @@ function AccordionItem({ item, isOpen, onToggle, onEdit, onDelete, onAnswer }) {
       <div className={`grid transition-all duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
         <div className="overflow-hidden">
           <div className="px-5 pb-5 border-t border-stone-100">
+            
+            {/* 원본 질문 영역 */}
             <div className="flex items-start gap-3 pt-4">
               <span className="shrink-0 w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center mt-0.5">Q</span>
-              <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{DOMPurify.sanitize(item.content)}</p>
-            </div>
-
-            <div className="flex items-start gap-3 mt-4">
-              <span className="shrink-0 w-6 h-6 rounded-full bg-slate-700 text-white text-xs font-bold flex items-center justify-center mt-0.5">A</span>
-              {item.answer ? (
-                <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{DOMPurify.sanitize(item.answer)}</p>
-              ) : (
-                <p className="text-sm text-stone-400 italic">아직 답변이 등록되지 않았습니다.</p>
-              )}
+              <div className="flex-1">
+                <p className="text-sm font-bold text-amber-700 mb-0.5">{item.nickname}</p>
+                <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{DOMPurify.sanitize(item.content)}</p>
+              </div>
             </div>
 
             {isAdmin && (
-              <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-stone-100">
-                <button onClick={() => onAnswer(item)} className="px-3 py-1.5 text-xs bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors font-medium">답변 달기/수정</button>
+              <div className="flex justify-end gap-2 mt-3">
                 <button onClick={() => onEdit(item)} className="px-3 py-1.5 text-xs bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors font-medium">질문 내용 수정</button>
                 <button onClick={() => onDelete(item.id)} className="px-3 py-1.5 text-xs border border-rose-200 text-rose-500 rounded-lg hover:bg-rose-50 transition-colors font-medium">삭제</button>
               </div>
             )}
+
+            {/* 대댓글(답변) 영역 */}
+            <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-stone-100">
+              
+              {/* 기존 단일 답변 렌더링 (하위 호환) */}
+              {item.answer && (
+                <div className="flex items-start gap-3 bg-amber-50/50 p-3 rounded-xl border border-amber-200/50 shadow-sm">
+                  <span className="shrink-0 mt-0.5 w-6 h-6 rounded-full bg-slate-700 text-white text-[10px] font-bold flex items-center justify-center">목사님</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-amber-800 mb-0.5 flex items-center gap-1.5">
+                      황철민 목사 
+                      <span className="text-[10px] font-normal text-amber-600 bg-amber-100/80 px-1.5 py-0.5 rounded border border-amber-200/50">관리자 답변</span>
+                    </p>
+                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{DOMPurify.sanitize(item.answer)}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* 다중 답변 렌더링 (answers 테이블) */}
+              {answers.map(ans => (
+                <div key={ans.id} className={`flex items-start gap-3 p-3 rounded-xl ${ans.is_admin ? 'bg-amber-50/80 border border-amber-200/50 shadow-sm' : 'bg-stone-50 border border-stone-100'}`}>
+                  <span className={`shrink-0 mt-0.5 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${ans.is_admin ? 'bg-slate-700 text-white' : 'bg-stone-300 text-stone-600'}`}>
+                    {ans.is_admin ? '목사님' : 'A'}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-bold mb-0.5 flex items-center flex-wrap gap-1.5 ${ans.is_admin ? 'text-amber-800' : 'text-slate-700'}`}>
+                      {ans.nickname}
+                      {ans.is_admin && <span className="text-[10px] font-normal text-amber-600 bg-amber-100/80 px-1.5 py-0.5 rounded border border-amber-200/50">관리자 답변</span>}
+                      <span className="text-[10px] font-normal text-stone-400 ml-1">{formatDate(ans.created_at)}</span>
+                    </p>
+                    <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{DOMPurify.sanitize(ans.content)}</p>
+                  </div>
+                  {isAdmin && (
+                    <button onClick={() => onDeleteReply(ans.id)} className="shrink-0 text-xs text-rose-400 hover:text-rose-600 px-2 py-1">삭제</button>
+                  )}
+                </div>
+              ))}
+
+              {/* 새 답변 달기 폼 */}
+              <form onSubmit={handleReplySubmit} className="mt-2 flex flex-col sm:flex-row gap-2 bg-white p-3 rounded-xl border border-stone-200 shadow-sm">
+                <input 
+                  type="text" 
+                  placeholder="닉네임" 
+                  value={replyNick} 
+                  onChange={e => setReplyNick(e.target.value)} 
+                  disabled={isAdmin || replying}
+                  className={`w-full sm:w-28 px-3 py-2 rounded-lg border border-stone-200 text-xs focus:ring-2 focus:ring-amber-400 focus:outline-none ${isAdmin ? 'bg-amber-50 text-amber-800 font-bold border-amber-200 cursor-not-allowed' : ''}`} 
+                />
+                <div className="flex flex-1 gap-2">
+                  <textarea 
+                    rows={1} 
+                    placeholder="자유롭게 답변이나 의견을 남겨주세요..." 
+                    value={replyContent} 
+                    onChange={e => setReplyContent(e.target.value)} 
+                    disabled={replying}
+                    className="flex-1 px-3 py-2 rounded-lg border border-stone-200 text-xs focus:ring-2 focus:ring-amber-400 focus:outline-none resize-none" 
+                  />
+                  <button type="submit" disabled={!replyNick || !replyContent || replying} className="px-4 py-2 bg-slate-800 text-white text-xs font-medium rounded-lg hover:bg-slate-700 disabled:opacity-50 shrink-0 transition-colors">
+                    등록
+                  </button>
+                </div>
+              </form>
+            </div>
+
           </div>
         </div>
       </div>
@@ -144,13 +222,25 @@ function QnATab() {
   const [deleteError, setDeleteError] = useState('')
   const [cooldown, setCooldown] = useState(0) // 도배 방지 쿨타임 (초)
 
-  const [adminModal, setAdminModal] = useState({ isOpen: false, data: null, mode: 'answer' }) // mode: 'answer' | 'edit'
+  const [editModal, setEditModal] = useState({ isOpen: false, data: null }) 
 
   const fetchQuestions = async () => {
     try {
-      const { data, error } = await supabase.from('questions').select('*').order('created_at', { ascending: false })
-      if (error) throw error
-      setQuestions(data || [])
+      let fetchedData
+      // answers 테이블과 조인하여 가져오기 시도
+      const res = await supabase.from('questions').select('*, answers(*)').order('created_at', { ascending: false })
+      
+      if (res.error) {
+        // answers 테이블이 아직 없을 경우 폴백 처리
+        const fallback = await supabase.from('questions').select('*').order('created_at', { ascending: false })
+        fetchedData = fallback.data
+      } else {
+        fetchedData = res.data.map(q => ({
+          ...q,
+          answers: (q.answers || []).sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+        }))
+      }
+      setQuestions(fetchedData || [])
     } catch (err) {
       console.error('Supabase 읽기 오류:', err.message)
     } finally {
@@ -160,14 +250,19 @@ function QnATab() {
 
   useEffect(() => {
     fetchQuestions()
-    const channel = supabase
+    const channel1 = supabase
       .channel('public:questions')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'questions' }, () => {
-        fetchQuestions()
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'questions' }, () => fetchQuestions())
+      .subscribe()
+    const channel2 = supabase
+      .channel('public:answers')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'answers' }, () => fetchQuestions())
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
+    return () => { 
+      supabase.removeChannel(channel1)
+      supabase.removeChannel(channel2)
+    }
   }, [])
 
   // 도배 방지 쿨타임 체크 (로컬스토리지 기반)
@@ -203,7 +298,6 @@ function QnATab() {
 
     setSubmitting(true)
     try {
-      // DOMPurify로 XSS 방어 처리 후 DB에 저장
       const cleanNickname = DOMPurify.sanitize(nickname.trim())
       const cleanContent = DOMPurify.sanitize(content.trim())
 
@@ -212,10 +306,8 @@ function QnATab() {
       setNickname('')
       setContent('')
       
-      // 글 작성 성공 시 60초 쿨타임 부여
       localStorage.setItem('lastQnAPostTime', Date.now().toString())
       setCooldown(60)
-
       fetchQuestions()
     } catch (err) {
       console.error('등록 오류:', err.message)
@@ -226,18 +318,54 @@ function QnATab() {
   }
 
   const handleDelete = async (id) => {
-    // window.confirm 제거 (인앱 브라우저 무시 현상 방지)
     setDeleteError('')
     try {
       const { data, error: dbError } = await supabase.from('questions').delete().eq('id', id).select()
       if (dbError) throw dbError
       if (!data || data.length === 0) {
-        throw new Error('Supabase 대시보드에서 해당 테이블의 RLS를 꺼주세요! (권한 없음)')
+        throw new Error('Supabase 권한 오류 (RLS)')
       }
       fetchQuestions()
     } catch (err) {
       console.error('삭제 오류:', err)
       setDeleteError(`삭제 오류: ${err.message}`)
+    }
+  }
+
+  // 대댓글(답변) 등록
+  const handleReply = async (questionId, replyNick, replyContent, isAdmin) => {
+    try {
+      const cleanNick = DOMPurify.sanitize(replyNick.trim())
+      const cleanContent = DOMPurify.sanitize(replyContent.trim())
+      
+      const { error } = await supabase.from('answers').insert([{
+        question_id: questionId,
+        nickname: cleanNick,
+        content: cleanContent,
+        is_admin: isAdmin
+      }])
+      
+      if (error) {
+        if (error.message.includes('relation "answers" does not exist')) {
+          alert('💡 기능 업데이트 안내\n\n대댓글 기능을 사용하려면 Supabase에 answers 테이블을 추가로 생성해야 합니다! 채팅창의 안내 코드를 참조해 주세요.')
+        } else {
+          throw error
+        }
+      } else {
+        fetchQuestions()
+      }
+    } catch (err) {
+      alert(`오류: ${err.message}`)
+    }
+  }
+
+  // 대댓글 삭제
+  const handleDeleteReply = async (replyId) => {
+    try {
+      await supabase.from('answers').delete().eq('id', replyId)
+      fetchQuestions()
+    } catch (err) {
+      console.error(err)
     }
   }
 
@@ -251,7 +379,7 @@ function QnATab() {
           <span className="w-1 h-5 bg-amber-500 rounded-full inline-block" />
           질문 남기기
         </h2>
-        <p className="text-xs text-stone-400 mb-5">살아가면서 마주한 신앙인으로서의 고민, 질문을 익명으로 질문해 보세요.</p>
+        <p className="text-xs text-stone-400 mb-5">살아가면서 마주한 신앙인으로서의 고민, 질문을 나누어 보세요.</p>
         <form onSubmit={handleSubmit} className="space-y-3">
           <input
             type="text"
@@ -317,20 +445,20 @@ function QnATab() {
                 item={item}
                 isOpen={openId === item.id}
                 onToggle={() => toggleOpen(item.id)}
-                onAnswer={(data) => setAdminModal({ isOpen: true, data, mode: 'answer' })}
-                onEdit={(data) => setAdminModal({ isOpen: true, data, mode: 'edit' })}
+                onEdit={(data) => setEditModal({ isOpen: true, data })}
                 onDelete={handleDelete}
+                onReply={handleReply}
+                onDeleteReply={handleDeleteReply}
               />
             ))}
           </div>
         )}
       </div>
 
-      <AdminQnAModal
-        isOpen={adminModal.isOpen}
-        mode={adminModal.mode}
-        editData={adminModal.data}
-        onClose={() => setAdminModal({ isOpen: false, data: null, mode: 'answer' })}
+      <AdminEditModal
+        isOpen={editModal.isOpen}
+        editData={editModal.data}
+        onClose={() => setEditModal({ isOpen: false, data: null })}
         onSaved={fetchQuestions}
       />
     </div>
