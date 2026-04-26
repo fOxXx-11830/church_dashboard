@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useAdmin } from '../AdminContext'
 import DOMPurify from 'dompurify'
+import { Clock, PartyPopper, Cake, BookOpen, Calendar, Edit3, PlusCircle } from 'lucide-react'
 
 // ─── 상수 및 유틸리티 ──────────────────────────────────────
 const DAY_KO = ['주일', '월', '화', '수', '목', '금', '토']
@@ -44,10 +45,11 @@ function LiveClock() {
   const { dateStr, timeStr } = formatDateTime(now)
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-stone-200 px-8 py-10 text-center select-none relative overflow-hidden">
-      <p className="text-xs font-semibold text-stone-400 tracking-[0.25em] uppercase mb-4">현재 시각</p>
-      <p className="text-5xl md:text-6xl font-light text-slate-700 tracking-widest tabular-nums">{timeStr}</p>
-      <p className="text-stone-400 mt-3 text-sm md:text-base tracking-wide">{dateStr}</p>
+    <div className="flex items-center justify-center gap-2 py-4 mb-4">
+      <Clock className="w-4 h-4 text-slate-500" />
+      <time className="text-stone-500 text-sm md:text-base font-medium tracking-wide">
+        {dateStr} {timeStr}
+      </time>
     </div>
   )
 }
@@ -69,11 +71,15 @@ function WeeklyBirthdays({ birthdays }) {
   }).join(', ')
 
   return (
-    <div className="bg-gradient-to-r from-pink-100 to-rose-100 border border-pink-200 rounded-xl px-5 py-4 flex items-center gap-3 shadow-sm">
-      <span className="text-xl animate-bounce">🎉</span>
-      <p className="text-sm font-bold text-pink-700">
-        금주의 생일자: <span className="font-medium">{birthdayText}</span>
-      </p>
+    <div className="mb-8 overflow-hidden rounded-xl bg-pink-50 border border-pink-100 shadow-sm">
+      <div className="w-full h-1 bg-gradient-to-r from-pink-400 to-rose-400" />
+      <div className="flex items-center justify-center gap-3 py-3.5 px-4">
+        <PartyPopper className="w-5 h-5 text-pink-700 shrink-0" />
+        <p className="text-pink-800 font-medium text-sm md:text-base">
+          🎉 금주의 생일자: <span className="font-bold">{birthdayText}</span>
+        </p>
+        <Cake className="w-5 h-5 text-pink-700 shrink-0 hidden md:block" />
+      </div>
     </div>
   )
 }
@@ -291,56 +297,44 @@ function MainTab() {
       {/* 2. 실시간 시계 */}
       <LiveClock />
 
-      {/* 3. 금주의 암송 말씀 */}
-      <div className="relative rounded-2xl overflow-hidden shadow-lg border border-stone-200 group"
-        style={{ background: 'linear-gradient(135deg, #fdfcf9 0%, #f5f0e6 45%, #ede8db 100%)' }}
-      >
-        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-amber-400 via-amber-500 to-amber-300 rounded-l-2xl" />
-        <div className="absolute -top-8 -right-8 w-48 h-48 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #c4a052 0%, transparent 70%)' }} />
-        <div className="absolute -bottom-10 -left-4 w-36 h-36 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #a07840 0%, transparent 70%)' }} />
-
-        <div className="px-8 py-10 md:px-12 md:py-12 relative">
-          <div className="flex items-center justify-between mb-6">
-            <span className="inline-flex items-center gap-1.5 bg-amber-600/10 text-amber-700 text-xs font-bold px-3 py-1.5 rounded-full tracking-widest border border-amber-400/30">
-              ✦ 금주의 암송 말씀
-            </span>
+      {/* 3. 금주의 암송 말씀 (HeroBanner) */}
+      <section className="relative overflow-hidden bg-slate-800/5 py-12 px-6 rounded-2xl mb-8 group">
+        <div className="absolute inset-0 opacity-10" style={{ background: "radial-gradient(ellipse at 50% 120%, rgba(30,41,59,0.5) 0%, transparent 60%)" }} />
+        <div className="relative py-10 md:py-14 px-6 md:px-10 text-center">
+          <div className="flex items-center justify-center mb-5">
+            <div className="inline-flex items-center gap-2 bg-white/60 backdrop-blur-sm px-4 py-1.5 rounded-full border border-stone-200">
+              <BookOpen className="w-4 h-4 text-slate-600" />
+              <span className="text-sm font-medium text-slate-700">금주의 암송 말씀</span>
+            </div>
             {isAdmin && (
               <button 
                 onClick={() => setVerseModal({ isOpen: true, initialData: verse })}
-                className="p-2 rounded-full text-amber-600 hover:bg-amber-100 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                className="ml-3 p-1.5 rounded-full text-slate-500 hover:bg-slate-200 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                 title="말씀 수정"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                <Edit3 className="w-4 h-4" />
               </button>
             )}
           </div>
-
-          <div className="text-5xl text-amber-400/60 font-serif leading-none mb-2 select-none">"</div>
-          <blockquote className="text-xl md:text-2xl text-slate-700 leading-[1.85] tracking-wide max-w-2xl font-serif whitespace-pre-wrap">
-            {DOMPurify.sanitize(verse.content)}
+          <blockquote className="font-serif text-xl md:text-2xl lg:text-3xl leading-relaxed max-w-2xl mx-auto mb-5 text-slate-800 text-balance whitespace-pre-wrap">
+            &quot;{DOMPurify.sanitize(verse.content)}&quot;
           </blockquote>
-          <div className="flex items-end justify-between mt-5">
-            <div className="text-5xl text-amber-400/60 font-serif leading-none select-none self-end">"</div>
-            <div className="text-right">
-              <p className="text-amber-700 font-semibold text-sm tracking-widest">— {DOMPurify.sanitize(verse.reference)} —</p>
-            </div>
-          </div>
+          <cite className="text-stone-500 text-sm md:text-base font-medium not-italic">
+            — {DOMPurify.sanitize(verse.reference)} —
+          </cite>
         </div>
-      </div>
+      </section>
 
-      {/* 4. 교회 소식 */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold text-slate-700 flex items-center gap-2.5">
-            <span className="w-1 h-5 bg-amber-500 rounded-full inline-block" />
-            교회 소식
-          </h2>
+      {/* 4. 교회 소식 (NewsFeed) */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between px-2">
+          <h2 className="text-lg font-bold text-slate-800">교회 소식</h2>
           {isAdmin && (
             <button 
               onClick={() => setNewsModal({ isOpen: true, editData: null })}
               className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition-colors flex items-center gap-1"
             >
-              <span>+</span> 소식 추가
+              <PlusCircle className="w-3.5 h-3.5" /> 소식 추가
             </button>
           )}
         </div>
@@ -350,37 +344,40 @@ function MainTab() {
             등록된 교회 소식이 없습니다.
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden flex flex-col max-h-[400px]">
-            <div className="overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-stone-200 scrollbar-track-transparent">
-              {news.map((item) => {
-                const cat = NEWS_CATEGORIES[item.category] || NEWS_CATEGORIES.notice
-                const d = new Date(item.created_at)
-                const dateStr = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`
-                
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => { if (isAdmin) setNewsModal({ isOpen: true, editData: item }) }}
-                    className={`px-4 py-3 rounded-lg flex flex-col sm:flex-row sm:items-center gap-3 transition-colors group ${isAdmin ? 'hover:bg-stone-50 cursor-pointer' : ''}`}
-                  >
-                    <div className="flex items-center gap-3 flex-1 overflow-hidden">
-                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded border shrink-0 ${cat.style}`}>
+          <div className="grid gap-4">
+            {news.map((item) => {
+              const cat = NEWS_CATEGORIES[item.category] || NEWS_CATEGORIES.notice
+              const d = new Date(item.created_at)
+              const dateStr = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`
+              
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => { if (isAdmin) setNewsModal({ isOpen: true, editData: item }) }}
+                  className={`group relative bg-white border border-stone-200 rounded-xl p-5 hover:shadow-md transition-all duration-200 ${isAdmin ? 'cursor-pointer hover:border-slate-300' : ''}`}
+                >
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${cat.style}`}>
                         {cat.label}
                       </span>
-                      <span className="text-slate-700 font-medium group-hover:text-amber-600 transition-colors truncate">
-                        {item.category === 'birthday' ? `🎉 ${DOMPurify.sanitize(item.title)}` : DOMPurify.sanitize(item.title)}
-                      </span>
+                      <div className="flex items-center gap-1 text-[11px] text-stone-500">
+                        <Calendar className="w-3 h-3" />
+                        {dateStr}
+                      </div>
                     </div>
-                    <span className="text-xs text-stone-400 shrink-0 font-medium tracking-wide sm:text-right">
-                      {dateStr}
-                    </span>
+                    <div className="space-y-1">
+                      <h3 className="font-bold text-slate-800 group-hover:text-amber-600 transition-colors line-clamp-1">
+                        {item.category === 'birthday' ? `🎉 ${DOMPurify.sanitize(item.title)}` : DOMPurify.sanitize(item.title)}
+                      </h3>
+                    </div>
                   </div>
-                )
-              })}
-            </div>
+                </div>
+              )
+            })}
           </div>
         )}
-      </div>
+      </section>
 
       {/* 모달 */}
       <VerseFormModal

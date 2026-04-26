@@ -1,15 +1,22 @@
+import { Heart } from "lucide-react"
+
 function Footer() {
   return (
-    <footer className="bg-slate-800 text-slate-400 py-7 mt-8">
-      <div className="max-w-5xl mx-auto px-4 text-center space-y-1.5">
-        <p className="text-base font-semibold text-slate-200">열린교회</p>
-        <p className="text-sm">📍 서울특별시 강남구 테헤란로 123, 열린교회빌딩 3층</p>
-        <p className="text-sm">
+    <footer className="border-t border-stone-200 bg-white/50 py-8 mt-auto">
+      <div className="flex flex-col items-center justify-center gap-3 px-4 text-center">
+        <p className="text-base font-semibold text-slate-800">열린교회</p>
+        <p className="text-sm text-stone-500">📍 서울특별시 강남구 테헤란로 123, 열린교회빌딩 3층</p>
+        <p className="text-sm text-stone-500">
           📞 02-123-4567 &nbsp;|&nbsp; ✉️ info@openchurch.kr
         </p>
-        <div className="pt-2 border-t border-slate-700 mt-3">
-          <p className="text-xs text-slate-500">© 2026 열린교회. All rights reserved.</p>
-        </div>
+        <p className="text-xs text-stone-400 mt-2">
+          © {new Date().getFullYear()} 열린교회. All rights reserved.
+        </p>
+        <p className="flex items-center gap-1.5 text-xs text-stone-400">
+          <span>Made with</span>
+          <Heart className="w-3 h-3 text-pink-400 fill-pink-400" />
+          <span>for our community</span>
+        </p>
       </div>
     </footer>
   )
