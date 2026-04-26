@@ -182,25 +182,55 @@ function AdminForm({ onAddSuccess, editData, onCancelEdit }) {
 // ─── 메인 뷰어 컴포넌트 ──────────────────────────────────
 function MainViewer({ reading }) {
   const [isFloating, setIsFloating] = useState(false)
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
   const observerRef = useRef(null)
+  const dragStart = useRef({ x: 0, y: 0 })
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        // 영상 컨테이너가 화면 밖으로 나가면(isIntersecting === false) 플로팅 모드 켬
         setIsFloating(!entry.isIntersecting)
       },
-      { threshold: 0 } // 조금이라도 나가면 트리거
+      { threshold: 0 }
     )
 
-    if (observerRef.current) {
-      observer.observe(observerRef.current)
-    }
-
+    if (observerRef.current) observer.observe(observerRef.current)
     return () => {
       if (observerRef.current) observer.unobserve(observerRef.current)
     }
   }, [])
+
+  // 플로팅 모드가 풀리면 위치 초기화
+  useEffect(() => {
+    if (!isFloating) {
+      setPosition({ x: 0, y: 0 })
+    }
+  }, [isFloating])
+
+  const handlePointerDown = (e) => {
+    if (!isFloating) return
+    setIsDragging(true)
+    dragStart.current = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  const handlePointerMove = (e) => {
+    if (!isDragging) return
+    setPosition({
+      x: e.clientX - dragStart.current.x,
+      y: e.clientY - dragStart.current.y,
+    })
+  }
+
+  const handlePointerUp = (e) => {
+    if (!isDragging) return
+    setIsDragging(false)
+    e.currentTarget.releasePointerCapture(e.pointerId)
+  }
 
   if (!reading) {
     return (
@@ -217,21 +247,52 @@ function MainViewer({ reading }) {
     <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden flex flex-col relative">
       {/* 윗부분: 유튜브 영상 (최상단 배치 & PiP 스크롤 감지) */}
       <div className="w-full bg-slate-900 border-b border-stone-200">
-        {/* 이 div의 높이가 유지되어야 플로팅 시 글이 위로 점프하지 않음 */}
         <div ref={observerRef} className="relative w-full aspect-video mx-auto max-w-4xl">
           {videoId ? (
-            <iframe
+            <div
               className={
                 isFloating
-                  ? "fixed bottom-6 right-6 w-[280px] sm:w-[320px] aspect-video shadow-2xl rounded-xl z-50 animate-in slide-in-from-bottom-5 border-4 border-white"
-                  : "absolute top-0 left-0 w-full h-full"
+                  ? "fixed z-50 shadow-2xl rounded-xl overflow-hidden border-4 border-white bg-slate-900 flex flex-col"
+                  : "absolute inset-0 w-full h-full"
               }
-              src={`https://www.youtube.com/embed/${videoId}`}
-              title="YouTube video player"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
+              style={
+                isFloating
+                  ? {
+                      bottom: '24px',
+                      right: '24px',
+                      width: 'min(320px, 85vw)',
+                      transform: `translate(${position.x}px, ${position.y}px)`,
+                      touchAction: 'none', // 드래그 중 화면 스크롤 방지
+                      transition: isDragging ? 'none' : 'width 0.3s ease',
+                    }
+                  : { transform: 'none' }
+              }
+            >
+              {/* 드래그 핸들 (플로팅 상태에서만 보임) */}
+              <div
+                className={`w-full bg-slate-800 flex items-center justify-center cursor-move shrink-0 ${
+                  isFloating ? 'h-7 opacity-100' : 'h-0 opacity-0 hidden'
+                }`}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerUp}
+              >
+                <div className="w-10 h-1.5 bg-slate-500 rounded-full" />
+              </div>
+
+              {/* 실제 영상 영역 */}
+              <div className={`relative w-full ${isFloating ? 'aspect-video' : 'h-full'}`}>
+                <iframe
+                  className="absolute top-0 left-0 w-full h-full"
+                  src={`https://www.youtube.com/embed/${videoId}`}
+                  title="YouTube video player"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            </div>
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
               <span className="text-3xl mb-2">🎞️</span>
