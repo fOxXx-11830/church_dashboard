@@ -446,8 +446,8 @@ function BibleTab() {
       if (error) throw error
       fetchReadings() // 목록 새로고침
     } catch (err) {
-      console.error('삭제 오류:', err.message)
-      alert('삭제 중 오류가 발생했습니다.')
+      console.error('삭제 오류:', err)
+      alert(`삭제 중 오류가 발생했습니다: ${err.message}`)
     }
   }
 

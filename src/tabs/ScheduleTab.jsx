@@ -364,7 +364,7 @@ function ScheduleTab() {
       fetchEvents()
     } catch (err) {
       console.error('삭제 오류:', err)
-      alert('일정 삭제 중 오류가 발생했습니다.')
+      alert(`일정 삭제 중 오류가 발생했습니다: ${err.message}`)
     }
   }
 

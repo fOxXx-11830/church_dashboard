@@ -166,11 +166,13 @@ function NewsFormModal({ isOpen, onClose, onSaved, editData }) {
   const handleDelete = async () => {
     if (!window.confirm('정말 삭제하시겠습니까?')) return
     try {
-      await supabase.from('church_news').delete().eq('id', editData.id)
+      const { error } = await supabase.from('church_news').delete().eq('id', editData.id)
+      if (error) throw error
       onSaved()
       onClose()
     } catch (err) {
-      alert('삭제 오류가 발생했습니다.')
+      console.error('소식 삭제 오류:', err)
+      alert(`삭제 중 오류가 발생했습니다: ${err.message}`)
     }
   }
 
