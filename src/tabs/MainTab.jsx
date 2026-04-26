@@ -134,11 +134,13 @@ function NewsFormModal({ isOpen, onClose, onSaved, editData }) {
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState('notice')
   const [submitting, setSubmitting] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
     if (isOpen) {
       setTitle(editData?.title || '')
       setCategory(editData?.category || 'notice')
+      setErrorMsg('')
     }
   }, [isOpen, editData])
 
@@ -164,18 +166,19 @@ function NewsFormModal({ isOpen, onClose, onSaved, editData }) {
   }
 
   const handleDelete = async () => {
-    if (!window.confirm('정말 삭제하시겠습니까?')) return
+    // 카카오톡 인앱 브라우저 등에서 window.confirm이 무시되는 현상을 막기 위해 삭제
+    setErrorMsg('')
     try {
       const { data, error } = await supabase.from('church_news').delete().eq('id', editData.id).select()
       if (error) throw error
       if (!data || data.length === 0) {
-        throw new Error('권한이 없거나 이미 삭제된 항목입니다. (Supabase RLS 설정을 확인해주세요)')
+        throw new Error('Supabase RLS 설정을 꺼주세요! (권한 없음)')
       }
       onSaved()
       onClose()
     } catch (err) {
       console.error('소식 삭제 오류:', err)
-      alert(`삭제 중 오류가 발생했습니다: ${err.message}`)
+      setErrorMsg(`삭제 오류: ${err.message}`)
     }
   }
 
@@ -196,6 +199,11 @@ function NewsFormModal({ isOpen, onClose, onSaved, editData }) {
             <label className="block text-xs font-semibold text-slate-600 mb-1">제목</label>
             <input required type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none" placeholder="소식 내용을 입력하세요" />
           </div>
+          {errorMsg && (
+            <div className="p-3 bg-rose-100 text-rose-700 rounded-lg text-sm font-medium">
+              {errorMsg}
+            </div>
+          )}
           <div className="flex justify-between items-center pt-2">
             {editData ? (
               <button type="button" onClick={handleDelete} className="px-4 py-2.5 rounded-lg border border-rose-200 text-rose-500 text-sm font-medium hover:bg-rose-50">삭제</button>

@@ -403,6 +403,7 @@ function BibleTab() {
   // 관리 기능 상태
   const [openMenuId, setOpenMenuId] = useState(null) // 어떤 항목의 메뉴가 열려있는지
   const [editingItem, setEditingItem] = useState(null)
+  const [deleteError, setDeleteError] = useState('')
 
   const fetchReadings = async () => {
     setLoading(true)
@@ -440,17 +441,18 @@ function BibleTab() {
 
   // 삭제 실행
   const handleDelete = async (id) => {
-    if (!window.confirm('정말 이 말씀을 삭제하시겠습니까?')) return
+    // window.confirm 제거 (인앱 브라우저 무시 현상 방지)
+    setDeleteError('')
     try {
       const { data, error } = await supabase.from('daily_readings').delete().eq('id', id).select()
       if (error) throw error
       if (!data || data.length === 0) {
-        throw new Error('권한이 없거나 이미 삭제된 항목입니다. (Supabase RLS 설정을 확인해주세요)')
+        throw new Error('Supabase 대시보드에서 해당 테이블의 RLS를 꺼주세요! (권한 없음)')
       }
       fetchReadings() // 목록 새로고침
     } catch (err) {
       console.error('삭제 오류:', err)
-      alert(`삭제 중 오류가 발생했습니다: ${err.message}`)
+      setDeleteError(`삭제 오류: ${err.message}`)
     }
   }
 
@@ -476,6 +478,13 @@ function BibleTab() {
         <div className="h-64 bg-white rounded-2xl border border-stone-200 animate-pulse" />
       ) : (
         <>
+          {/* 에러 메시지 (삭제 실패 등) */}
+          {deleteError && (
+            <div className="p-3 bg-rose-100 text-rose-700 rounded-xl text-sm font-medium mb-4">
+              {deleteError}
+            </div>
+          )}
+
           {/* 메인 뷰어 */}
           <MainViewer reading={selectedReading} />
 

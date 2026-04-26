@@ -208,7 +208,7 @@ function EventFormModal({ isOpen, onClose, onSaved, editData, initialStart }) {
 }
 
 // ─── 일정 상세 팝업 ──────────────────────────────────────────
-function DetailModal({ isOpen, onClose, event, onEdit, onDelete, isAdmin }) {
+function DetailModal({ isOpen, onClose, event, onEdit, onDelete, isAdmin, deleteError }) {
   if (!isOpen || !event) return null
 
   const catLabel = CATEGORY_LABELS[event.extendedProps?.category] || '기타'
@@ -251,6 +251,12 @@ function DetailModal({ isOpen, onClose, event, onEdit, onDelete, isAdmin }) {
             )}
           </div>
 
+          {deleteError && (
+            <div className="p-3 bg-rose-100 text-rose-700 rounded-lg text-sm mb-4 font-medium">
+              {deleteError}
+            </div>
+          )}
+
           {isAdmin && (
             <div className="flex gap-2">
               <button onClick={onEdit} className="flex-1 py-2 rounded-xl bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200 transition-colors">수정</button>
@@ -275,6 +281,7 @@ function ScheduleTab() {
   // 모달 상태
   const [detailModal, setDetailModal] = useState({ isOpen: false, event: null })
   const [formModal, setFormModal] = useState({ isOpen: false, editData: null, startStr: '' })
+  const [deleteError, setDeleteError] = useState('')
 
   const fetchEvents = async () => {
     setLoading(true)
@@ -350,24 +357,24 @@ function ScheduleTab() {
 
   // 상세 팝업에서 삭제 버튼 클릭
   const handleDeleteClick = () => {
-    if (window.confirm('정말 이 일정을 삭제하시겠습니까?')) {
-      executeDelete(detailModal.event.id)
-    }
+    // window.confirm 제거 (인앱 브라우저 무시 현상 방지)
+    executeDelete(detailModal.event.id)
   }
 
   // 실제 삭제 실행
   const executeDelete = async (id) => {
+    setDeleteError('')
     try {
       const { data, error } = await supabase.from('church_events').delete().eq('id', id).select()
       if (error) throw error
       if (!data || data.length === 0) {
-        throw new Error('권한이 없거나 이미 삭제된 항목입니다. (Supabase RLS 설정을 확인해주세요)')
+        throw new Error('Supabase 대시보드에서 RLS를 꺼주세요! (권한 없음)')
       }
       setDetailModal({ isOpen: false, event: null })
       fetchEvents()
     } catch (err) {
       console.error('삭제 오류:', err)
-      alert(`일정 삭제 중 오류가 발생했습니다: ${err.message}`)
+      setDeleteError(`삭제 오류: ${err.message}`)
     }
   }
 
@@ -419,10 +426,11 @@ function ScheduleTab() {
       <DetailModal
         isOpen={detailModal.isOpen}
         event={detailModal.event}
-        onClose={() => setDetailModal({ isOpen: false, event: null })}
+        onClose={() => { setDetailModal({ isOpen: false, event: null }); setDeleteError(''); }}
         onEdit={handleEditClick}
         onDelete={handleDeleteClick}
         isAdmin={isAdmin}
+        deleteError={deleteError}
       />
 
       <EventFormModal

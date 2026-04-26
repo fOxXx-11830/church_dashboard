@@ -140,6 +140,7 @@ function QnATab() {
   const [loading, setLoading] = useState(true)
   const [openId, setOpenId] = useState(null)
   const [error, setError] = useState('')
+  const [deleteError, setDeleteError] = useState('')
 
   const [adminModal, setAdminModal] = useState({ isOpen: false, data: null, mode: 'answer' }) // mode: 'answer' | 'edit'
 
@@ -189,17 +190,18 @@ function QnATab() {
   }
 
   const handleDelete = async (id) => {
-    if (!window.confirm('정말 이 질문을 삭제하시겠습니까?')) return
+    // window.confirm 제거 (인앱 브라우저 무시 현상 방지)
+    setDeleteError('')
     try {
       const { data, error: dbError } = await supabase.from('questions').delete().eq('id', id).select()
       if (dbError) throw dbError
       if (!data || data.length === 0) {
-        throw new Error('권한이 없거나 이미 삭제된 항목입니다. (Supabase RLS 설정을 확인해주세요)')
+        throw new Error('Supabase 대시보드에서 해당 테이블의 RLS를 꺼주세요! (권한 없음)')
       }
       fetchQuestions()
     } catch (err) {
       console.error('삭제 오류:', err)
-      alert(`삭제 중 오류가 발생했습니다: ${err.message}`)
+      setDeleteError(`삭제 오류: ${err.message}`)
     }
   }
 
@@ -243,11 +245,19 @@ function QnATab() {
 
       {/* 질문 목록 */}
       <div>
-        <h3 className="text-base font-bold text-slate-700 mb-4 flex items-center gap-2">
-          <span className="w-1 h-5 bg-slate-600 rounded-full inline-block" />
-          질문 목록
-          {!loading && <span className="ml-1 text-xs font-normal text-stone-400">({questions.length}건)</span>}
-        </h3>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+          <h3 className="text-base font-bold text-slate-700 flex items-center gap-2">
+            <span className="w-1 h-5 bg-slate-600 rounded-full inline-block" />
+            질문 목록
+            {!loading && <span className="ml-1 text-xs font-normal text-stone-400">({questions.length}건)</span>}
+          </h3>
+        </div>
+
+        {deleteError && (
+          <div className="p-3 bg-rose-100 text-rose-700 rounded-lg text-sm mb-4 font-medium">
+            {deleteError}
+          </div>
+        )}
 
         {loading && (
           <div className="space-y-3">
