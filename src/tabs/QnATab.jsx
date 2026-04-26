@@ -3,14 +3,14 @@ import { supabase } from '../supabase'
 import { useAdmin } from '../AdminContext'
 import DOMPurify from 'dompurify'
 
-// ─── 날짜 포맷 ────────────────────────────────────────────
+// ─── Date Format ────────────────────────────────────────────
 function formatDate(isoString) {
   if (!isoString) return '방금 전'
   const d = new Date(isoString)
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
 }
 
-// ─── 관리자: 답변/수정 모달 ────────────────────────────────
+// ─── Admin Answer/Edit Modal ────────────────────────────────
 function AdminQnAModal({ isOpen, onClose, onSaved, editData, mode }) {
   const [content, setContent] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -54,8 +54,11 @@ function AdminQnAModal({ isOpen, onClose, onSaved, editData, mode }) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
-        <h3 className="text-lg font-bold text-slate-800 mb-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200 border border-sky-100">
+        <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <span className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center text-sky-600">
+            {mode === 'answer' ? '✍️' : '✏️'}
+          </span>
           {mode === 'answer' ? '답변 작성/수정' : '질문 수정'}
         </h3>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -65,13 +68,13 @@ function AdminQnAModal({ isOpen, onClose, onSaved, editData, mode }) {
               value={content}
               onChange={(e) => { setContent(e.target.value); setError(''); }}
               placeholder={mode === 'answer' ? "답변을 입력하세요..." : "질문을 수정하세요..."}
-              className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none resize-none"
+              className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-sky-400 focus:border-sky-400 focus:outline-none resize-none"
             />
           </div>
           {error && <p className="text-xs text-rose-500 font-medium">{error}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-lg border border-stone-200 text-stone-600 text-sm font-medium hover:bg-stone-50">취소</button>
-            <button type="submit" disabled={submitting} className="px-5 py-2.5 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50">
+            <button type="submit" disabled={submitting} className="px-5 py-2.5 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 disabled:opacity-50">
               {submitting ? '저장 중...' : '저장하기'}
             </button>
           </div>
@@ -81,48 +84,73 @@ function AdminQnAModal({ isOpen, onClose, onSaved, editData, mode }) {
   )
 }
 
-// ─── 아코디언 아이템 ──────────────────────────────────────
+// ─── Accordion Item ──────────────────────────────────────
 function AccordionItem({ item, isOpen, onToggle, onEdit, onDelete, onAnswer }) {
   const { isAdmin } = useAdmin()
 
   return (
-    <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
+    <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-sky-100 shadow-sm overflow-hidden">
       <button
         onClick={onToggle}
-        className="w-full px-5 py-4 flex items-start gap-3 text-left hover:bg-stone-50 transition-colors duration-150 focus:outline-none"
+        className="w-full px-5 py-4 flex items-start gap-3 text-left hover:bg-sky-50/50 transition-colors duration-150 focus:outline-none"
       >
-        <span className="shrink-0 mt-0.5 w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center">Q</span>
+        <span className="shrink-0 mt-0.5 w-7 h-7 rounded-full bg-gradient-to-br from-sky-400 to-sky-500 text-white text-xs font-bold flex items-center justify-center shadow-sm">Q</span>
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-slate-700 truncate">{item.content}</p>
-          <p className="text-xs text-stone-400 mt-0.5">
-            {item.nickname} &nbsp;·&nbsp; {formatDate(item.created_at)}
+          <p className="font-medium text-slate-700 line-clamp-2">{item.content}</p>
+          <p className="text-xs text-stone-400 mt-1.5 flex items-center gap-2">
+            <span className="px-2 py-0.5 bg-stone-100 rounded-full">{item.nickname}</span>
+            <span>·</span>
+            <span>{formatDate(item.created_at)}</span>
+            {item.answer && (
+              <>
+                <span>·</span>
+                <span className="text-sky-500 font-medium">답변완료</span>
+              </>
+            )}
           </p>
         </div>
-        <span className={`shrink-0 text-stone-400 mt-0.5 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>▾</span>
+        <span className={`shrink-0 text-stone-400 mt-1 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+        </span>
       </button>
 
       <div className={`grid transition-all duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
         <div className="overflow-hidden">
-          <div className="px-5 pb-5 border-t border-stone-100">
+          <div className="px-5 pb-5 border-t border-sky-50">
+            {/* Question */}
             <div className="flex items-start gap-3 pt-4">
-              <span className="shrink-0 w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center mt-0.5">Q</span>
-              <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{DOMPurify.sanitize(item.content)}</p>
+              <span className="shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-sky-400 to-sky-500 text-white text-xs font-bold flex items-center justify-center shadow-sm mt-0.5">Q</span>
+              <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap flex-1">{DOMPurify.sanitize(item.content)}</p>
             </div>
 
-            <div className="flex items-start gap-3 mt-4">
-              <span className="shrink-0 w-6 h-6 rounded-full bg-slate-700 text-white text-xs font-bold flex items-center justify-center mt-0.5">A</span>
+            {/* Answer */}
+            <div className="flex items-start gap-3 mt-5 pt-4 border-t border-dashed border-sky-100">
+              <span className="shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 text-white text-xs font-bold flex items-center justify-center shadow-sm mt-0.5">A</span>
               {item.answer ? (
-                <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{DOMPurify.sanitize(item.answer)}</p>
+                <div className="flex-1 bg-sky-50/50 rounded-xl p-4 border border-sky-100">
+                  <p className="text-xs font-semibold text-sky-600 mb-2">목사님 답변</p>
+                  <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{DOMPurify.sanitize(item.answer)}</p>
+                </div>
               ) : (
-                <p className="text-sm text-stone-400 italic">아직 답변이 등록되지 않았습니다.</p>
+                <p className="text-sm text-stone-400 italic flex-1">아직 답변이 등록되지 않았습니다.</p>
               )}
             </div>
 
+            {/* Admin Actions */}
             {isAdmin && (
-              <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-stone-100">
-                <button onClick={() => onAnswer(item)} className="px-3 py-1.5 text-xs bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors font-medium">답변 달기/수정</button>
-                <button onClick={() => onEdit(item)} className="px-3 py-1.5 text-xs bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors font-medium">질문 내용 수정</button>
-                <button onClick={() => onDelete(item.id)} className="px-3 py-1.5 text-xs border border-rose-200 text-rose-500 rounded-lg hover:bg-rose-50 transition-colors font-medium">삭제</button>
+              <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-sky-100">
+                <button onClick={() => onAnswer(item)} className="px-3 py-1.5 text-xs bg-sky-100 text-sky-700 rounded-lg hover:bg-sky-200 transition-colors font-medium flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+                  답변
+                </button>
+                <button onClick={() => onEdit(item)} className="px-3 py-1.5 text-xs bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors font-medium flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                  수정
+                </button>
+                <button onClick={() => onDelete(item.id)} className="px-3 py-1.5 text-xs border border-rose-200 text-rose-500 rounded-lg hover:bg-rose-50 transition-colors font-medium flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  삭제
+                </button>
               </div>
             )}
           </div>
@@ -132,7 +160,7 @@ function AccordionItem({ item, isOpen, onToggle, onEdit, onDelete, onAnswer }) {
   )
 }
 
-// ─── 질문과 답변 탭 ───────────────────────────────────────
+// ─── Q&A Tab ───────────────────────────────────────────────
 function QnATab() {
   const [nickname, setNickname] = useState('')
   const [content, setContent] = useState('')
@@ -142,9 +170,9 @@ function QnATab() {
   const [openId, setOpenId] = useState(null)
   const [error, setError] = useState('')
   const [deleteError, setDeleteError] = useState('')
-  const [cooldown, setCooldown] = useState(0) // 도배 방지 쿨타임 (초)
+  const [cooldown, setCooldown] = useState(0)
 
-  const [adminModal, setAdminModal] = useState({ isOpen: false, data: null, mode: 'answer' }) // mode: 'answer' | 'edit'
+  const [adminModal, setAdminModal] = useState({ isOpen: false, data: null, mode: 'answer' })
 
   const fetchQuestions = async () => {
     try {
@@ -170,7 +198,6 @@ function QnATab() {
     return () => { supabase.removeChannel(channel) }
   }, [])
 
-  // 도배 방지 쿨타임 체크 (로컬스토리지 기반)
   useEffect(() => {
     const lastPostTime = localStorage.getItem('lastQnAPostTime')
     if (lastPostTime) {
@@ -199,11 +226,10 @@ function QnATab() {
     }
 
     if (!nickname.trim()) { setError('닉네임을 입력해 주세요.'); return }
-    if (!content.trim())  { setError('질문 내용을 입력해 주세요.'); return }
+    if (!content.trim()) { setError('질문 내용을 입력해 주세요.'); return }
 
     setSubmitting(true)
     try {
-      // DOMPurify로 XSS 방어 처리 후 DB에 저장
       const cleanNickname = DOMPurify.sanitize(nickname.trim())
       const cleanContent = DOMPurify.sanitize(content.trim())
 
@@ -212,7 +238,6 @@ function QnATab() {
       setNickname('')
       setContent('')
       
-      // 글 작성 성공 시 60초 쿨타임 부여
       localStorage.setItem('lastQnAPostTime', Date.now().toString())
       setCooldown(60)
 
@@ -226,7 +251,6 @@ function QnATab() {
   }
 
   const handleDelete = async (id) => {
-    // window.confirm 제거 (인앱 브라우저 무시 현상 방지)
     setDeleteError('')
     try {
       const { data, error: dbError } = await supabase.from('questions').delete().eq('id', id).select()
@@ -245,11 +269,11 @@ function QnATab() {
 
   return (
     <div className="space-y-8">
-      {/* 질문 입력 폼 */}
-      <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
+      {/* Question Form */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-sky-100 shadow-sm p-6">
         <h2 className="text-base font-bold text-slate-700 mb-1 flex items-center gap-2">
-          <span className="w-1 h-5 bg-amber-500 rounded-full inline-block" />
-          익명으로 질문 남기기
+          <span className="w-1 h-5 bg-sky-500 rounded-full inline-block" />
+          목사님께 익명으로 질문하기
         </h2>
         <p className="text-xs text-stone-400 mb-5">닉네임만 입력하고 익명으로 궁금한 점을 질문해 보세요.</p>
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -260,7 +284,7 @@ function QnATab() {
             onChange={e => setNickname(e.target.value)}
             maxLength={20}
             disabled={submitting}
-            className="w-full sm:w-48 px-4 py-2.5 rounded-lg border border-stone-200 text-sm text-slate-700 placeholder-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400 transition disabled:opacity-50"
+            className="w-full sm:w-48 px-4 py-2.5 rounded-lg border border-stone-200 text-sm text-slate-700 placeholder-stone-300 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400 transition disabled:opacity-50"
           />
           <textarea
             rows={4}
@@ -268,24 +292,29 @@ function QnATab() {
             value={content}
             onChange={e => setContent(e.target.value)}
             disabled={submitting}
-            className="w-full px-4 py-3 rounded-lg border border-stone-200 text-sm text-slate-700 placeholder-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400 transition resize-none disabled:opacity-50"
+            className="w-full px-4 py-3 rounded-lg border border-stone-200 text-sm text-slate-700 placeholder-stone-300 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400 transition resize-none disabled:opacity-50"
           />
           {error && <p className="text-xs text-rose-500 font-medium">{error}</p>}
           <div className="flex justify-end">
-            <button type="submit" disabled={submitting || cooldown > 0} className="bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white text-sm font-medium px-6 py-2.5 rounded-lg transition-colors duration-150 flex items-center gap-2">
-              {submitting ? '등록 중...' : (cooldown > 0 ? `${cooldown}초 대기` : '질문 등록')}
+            <button type="submit" disabled={submitting || cooldown > 0} className="bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white text-sm font-medium px-6 py-2.5 rounded-lg transition-colors duration-150 flex items-center gap-2">
+              {submitting ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  등록 중...
+                </>
+              ) : cooldown > 0 ? `${cooldown}초 대기` : '질문 등록'}
             </button>
           </div>
         </form>
       </div>
 
-      {/* 질문 목록 */}
+      {/* Question List */}
       <div>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
           <h3 className="text-base font-bold text-slate-700 flex items-center gap-2">
             <span className="w-1 h-5 bg-slate-600 rounded-full inline-block" />
             질문 목록
-            {!loading && <span className="ml-1 text-xs font-normal text-stone-400">({questions.length}건)</span>}
+            {!loading && <span className="ml-1 text-xs font-normal text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">{questions.length}건</span>}
           </h3>
         </div>
 
@@ -297,13 +326,13 @@ function QnATab() {
 
         {loading && (
           <div className="space-y-3">
-            {[1, 2, 3].map(i => <div key={i} className="bg-white rounded-xl border border-stone-200 h-16 animate-pulse" />)}
+            {[1, 2, 3].map(i => <div key={i} className="bg-white/80 rounded-xl border border-sky-100 h-20 animate-pulse" />)}
           </div>
         )}
 
         {!loading && questions.length === 0 && (
-          <div className="bg-white rounded-xl border border-stone-200 py-12 text-center text-stone-400">
-            <p className="text-2xl mb-2">🙏</p>
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-sky-100 py-12 text-center text-stone-400">
+            <p className="text-3xl mb-2">🙏</p>
             <p className="text-sm">아직 등록된 질문이 없습니다.</p>
             <p className="text-xs mt-1">첫 번째 질문을 남겨보세요!</p>
           </div>

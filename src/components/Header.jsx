@@ -1,40 +1,50 @@
 function Header({ activeTab, setActiveTab, tabs }) {
   return (
-    <header className="bg-slate-800 shadow-xl">
-      {/* 로고 영역 */}
-      <div className="flex flex-col items-center pt-7 pb-4">
-        <div className="flex items-center gap-3">
-          {/* 십자가 SVG 아이콘 */}
-          <svg viewBox="0 0 40 44" className="w-10 h-11" fill="none">
-            <rect x="15" y="2"  width="10" height="40" rx="3" fill="#f59e0b" />
-            <rect x="4"  y="14" width="32" height="10" rx="3" fill="#f59e0b" />
-          </svg>
+    <header className="bg-gradient-to-b from-sky-600 via-sky-500 to-sky-400 shadow-lg relative overflow-hidden">
+      {/* Decorative background elements */}
+      <div className="absolute inset-0 opacity-10">
+        <div className="absolute top-0 left-1/4 w-64 h-64 bg-white rounded-full blur-3xl -translate-y-1/2" />
+        <div className="absolute top-0 right-1/4 w-48 h-48 bg-white rounded-full blur-2xl -translate-y-1/3" />
+      </div>
+
+      {/* Logo area */}
+      <div className="relative flex flex-col items-center pt-6 pb-4">
+        <div className="flex items-center gap-4">
+          {/* Church Logo Image */}
+          <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl overflow-hidden shadow-lg border-2 border-white/30 bg-white">
+            <img 
+              src="/images/church-logo.jpg" 
+              alt="교회 로고" 
+              className="w-full h-full object-cover"
+            />
+          </div>
           <div>
-            <h1 className="text-2xl font-bold text-white tracking-wide leading-tight">열린교회</h1>
-            <p className="text-xs text-amber-400 tracking-[0.3em] font-light">OPEN CHURCH</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-white tracking-wide leading-tight drop-shadow-sm">
+              열린교회
+            </h1>
+            <p className="text-xs md:text-sm text-sky-100 tracking-[0.2em] font-light">
+              OPEN CHURCH
+            </p>
           </div>
         </div>
       </div>
 
-      {/* 탭 내비게이션 */}
-      <nav className="flex justify-center">
-        <div className="flex">
+      {/* Tab Navigation */}
+      <nav className="relative flex justify-center px-2 pb-1">
+        <div className="flex bg-white/10 rounded-xl p-1 backdrop-blur-sm">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               id={`tab-${tab.id}`}
               onClick={() => setActiveTab(tab.id)}
-              className={`relative px-5 py-3 text-sm font-medium transition-all duration-200 focus:outline-none
+              className={`relative px-3 sm:px-5 py-2.5 text-xs sm:text-sm font-medium transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50
                 ${activeTab === tab.id
-                  ? 'text-amber-400'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-white text-sky-700 shadow-md'
+                  : 'text-white/90 hover:text-white hover:bg-white/10'
                 }`}
             >
-              <span className="mr-1.5">{tab.icon}</span>
-              {tab.label}
-              {activeTab === tab.id && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-400 rounded-t-sm" />
-              )}
+              <span className="mr-1 sm:mr-1.5 hidden sm:inline">{tab.icon}</span>
+              <span className="whitespace-nowrap">{tab.label}</span>
             </button>
           ))}
         </div>
