@@ -78,7 +78,7 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col font-sans" style={{ backgroundColor: '#faf9f7' }}>
+    <div className="min-h-screen flex flex-col font-sans bg-gradient-to-br from-[#eaf4f8] via-[#fbf7da] to-[#efe6d5]">
       <Header activeTab={activeTab} setActiveTab={setActiveTab} tabs={TABS} />
       <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-8">
         {renderContent()}
@@ -86,7 +86,7 @@ function AppContent() {
       <Footer />
 
       {/* 관리자 모드 버튼 */}
-      <div className="text-center pb-8 bg-[#faf9f7]">
+      <div className="text-center pb-8">
         <button 
           onClick={() => isAdmin ? setIsAdmin(false) : setPinModalOpen(true)}
           className="text-xs text-stone-400 hover:text-slate-600 transition-colors font-medium"

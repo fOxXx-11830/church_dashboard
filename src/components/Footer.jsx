@@ -9,14 +9,6 @@ function Footer() {
         <p className="text-sm text-stone-500">
           📞 02-123-4567 &nbsp;|&nbsp; ✉️ info@openchurch.kr
         </p>
-        <p className="text-xs text-stone-400 mt-2">
-          © {new Date().getFullYear()} 열린교회. All rights reserved.
-        </p>
-        <p className="flex items-center gap-1.5 text-xs text-stone-400">
-          <span>Made with</span>
-          <Heart className="w-3 h-3 text-pink-400 fill-pink-400" />
-          <span>for our community</span>
-        </p>
       </div>
     </footer>
   )
