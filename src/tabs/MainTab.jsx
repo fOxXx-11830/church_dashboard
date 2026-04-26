@@ -45,12 +45,12 @@ function LiveClock() {
   const { dateStr, timeStr } = formatDateTime(now)
 
   return (
-    <div className="flex flex-col items-center justify-center py-10 mb-8 bg-gradient-to-b from-white/60 to-white/90 rounded-[2rem] border border-[#eaddb1]/60 shadow-sm relative overflow-hidden backdrop-blur-sm">
-      <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#8cc4d8] via-[#eaddb1] to-[#c0a080]" />
-      <p className="text-[#a18c73] text-sm md:text-base font-semibold tracking-widest mb-3">{dateStr}</p>
-      <div className="flex items-center gap-4">
-        <Clock className="w-8 h-8 md:w-10 md:h-10 text-[#8cc4d8]" />
-        <time className="text-6xl md:text-7xl lg:text-8xl font-light text-[#5c4d3c] tracking-wider tabular-nums drop-shadow-sm">
+    <div className="flex flex-col items-center justify-center py-7 mb-6 bg-gradient-to-b from-white/60 to-white/90 rounded-[1.5rem] border border-[#eaddb1]/60 shadow-sm relative overflow-hidden backdrop-blur-sm">
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#8cc4d8] via-[#eaddb1] to-[#c0a080]" />
+      <p className="text-[#a18c73] text-xs md:text-sm font-semibold tracking-widest mb-1.5">{dateStr}</p>
+      <div className="flex items-center gap-3">
+        <Clock className="w-6 h-6 md:w-7 md:h-7 text-[#8cc4d8]" />
+        <time className="text-4xl md:text-5xl lg:text-6xl font-light text-[#5c4d3c] tracking-wider tabular-nums drop-shadow-sm">
           {timeStr}
         </time>
       </div>
@@ -302,9 +302,9 @@ function MainTab() {
       <LiveClock />
 
       {/* 3. 금주의 암송 말씀 (HeroBanner) */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-[#b59e84]/10 to-[#8cc4d8]/10 py-12 px-6 rounded-[2rem] mb-8 group border border-[#eaddb1]/50">
+      <section className="relative overflow-hidden bg-gradient-to-b from-[#b59e84]/10 to-[#8cc4d8]/10 py-8 px-5 rounded-2xl mb-8 group border border-[#eaddb1]/50">
         <div className="absolute inset-0 opacity-20" style={{ background: "radial-gradient(ellipse at 50% 120%, #c0a080 0%, transparent 60%)" }} />
-        <div className="relative py-10 md:py-14 px-6 md:px-10 text-center">
+        <div className="relative py-6 md:py-8 px-4 md:px-8 text-center">
           <div className="flex items-center justify-center mb-6">
             <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm px-5 py-2 rounded-full border border-[#eaddb1] shadow-sm">
               <BookOpen className="w-4 h-4 text-[#8a7258]" />
@@ -320,10 +320,10 @@ function MainTab() {
               </button>
             )}
           </div>
-          <blockquote className="font-serif text-2xl md:text-3xl lg:text-4xl leading-relaxed max-w-2xl mx-auto mb-6 text-[#5c4d3c] text-balance whitespace-pre-wrap">
+          <blockquote className="font-serif text-xl md:text-2xl lg:text-3xl leading-relaxed max-w-2xl mx-auto mb-4 text-[#5c4d3c] text-balance whitespace-pre-wrap">
             &quot;{DOMPurify.sanitize(verse.content)}&quot;
           </blockquote>
-          <cite className="text-[#a18c73] text-base md:text-lg font-semibold not-italic">
+          <cite className="text-[#a18c73] text-sm md:text-base font-semibold not-italic">
             — {DOMPurify.sanitize(verse.reference)} —
           </cite>
         </div>
