@@ -249,9 +249,9 @@ function QnATab() {
       <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
         <h2 className="text-base font-bold text-slate-700 mb-1 flex items-center gap-2">
           <span className="w-1 h-5 bg-amber-500 rounded-full inline-block" />
-          익명으로 질문 남기기
+          질문 남기기
         </h2>
-        <p className="text-xs text-stone-400 mb-5">닉네임만 입력하고 익명으로 궁금한 점을 질문해 보세요.</p>
+        <p className="text-xs text-stone-400 mb-5">살아가면서 마주한 신앙인으로서의 고민, 질문을 익명으로 질문해 보세요.</p>
         <form onSubmit={handleSubmit} className="space-y-3">
           <input
             type="text"
