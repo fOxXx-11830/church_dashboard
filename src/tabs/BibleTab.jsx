@@ -192,10 +192,29 @@ function MainViewer({ reading }) {
   const videoId = getYouTubeID(reading.youtube_url)
 
   return (
-    <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden flex flex-col md:flex-row">
-      {/* 왼쪽: 유튜브 영상 */}
-      <div className="w-full md:w-1/2 bg-slate-900 shrink-0">
-        <div className="relative w-full aspect-video">
+    <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden flex flex-col">
+      {/* 윗부분: 내용 영역 (본문을 넓게 씀) */}
+      <div className="w-full p-6 md:p-8 flex flex-col">
+        <div className="mb-6 border-b border-stone-100 pb-4">
+          <span className="inline-block px-3 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-full mb-3">
+            제 {reading.day} 일차
+          </span>
+          <h2 className="text-xl md:text-2xl font-bold text-slate-800 leading-snug">
+            {reading.subtitle}
+          </h2>
+        </div>
+
+        {/* 스크롤 제한을 풀고 텍스트가 자연스럽게 펼쳐지도록 수정 */}
+        <div className="w-full">
+          <p className="text-slate-600 text-sm md:text-base leading-loose whitespace-pre-wrap font-serif tracking-wide">
+            {reading.content}
+          </p>
+        </div>
+      </div>
+
+      {/* 아랫부분: 유튜브 영상 (최하단 배치) */}
+      <div className="w-full bg-slate-900 border-t border-stone-200">
+        <div className="relative w-full aspect-video mx-auto max-w-4xl">
           {videoId ? (
             <iframe
               className="absolute top-0 left-0 w-full h-full"
@@ -211,25 +230,6 @@ function MainViewer({ reading }) {
               <span className="text-xs">유튜브 영상이 없습니다</span>
             </div>
           )}
-        </div>
-      </div>
-
-      {/* 오른쪽: 내용 영역 */}
-      <div className="w-full md:w-1/2 p-6 md:p-8 flex flex-col">
-        <div className="mb-6 border-b border-stone-100 pb-4">
-          <span className="inline-block px-3 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-full mb-3">
-            제 {reading.day} 일차
-          </span>
-          <h2 className="text-xl md:text-2xl font-bold text-slate-800 leading-snug">
-            {reading.subtitle}
-          </h2>
-        </div>
-
-        {/* 스크롤 가능한 본문 영역 */}
-        <div className="flex-1 overflow-y-auto max-h-[400px] pr-2 custom-scrollbar">
-          <p className="text-slate-600 text-sm md:text-base leading-loose whitespace-pre-wrap font-serif tracking-wide">
-            {reading.content}
-          </p>
         </div>
       </div>
     </div>
