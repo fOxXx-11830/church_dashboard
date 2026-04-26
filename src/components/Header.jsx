@@ -17,7 +17,14 @@ export default function Header({ activeTab, setActiveTab, tabs }) {
           if (data && data.publicUrl) {
             try {
               const response = await fetch(data.publicUrl)
-              if (!response.ok) throw new Error('파일을 찾을 수 없습니다.')
+              
+              if (response.status === 404) {
+                alert('아직 관리자가 주보를 업로드하지 않았거나 파일을 찾을 수 없습니다.')
+                return
+              }
+              
+              if (!response.ok) throw new Error('Network Error')
+              
               const blob = await response.blob()
               const downloadUrl = window.URL.createObjectURL(blob)
               const link = document.createElement('a')
@@ -28,6 +35,7 @@ export default function Header({ activeTab, setActiveTab, tabs }) {
               link.remove()
               window.URL.revokeObjectURL(downloadUrl)
             } catch (fetchErr) {
+              // CORS 등의 문제로 fetch가 실패한 경우에만 직접 열기 시도
               window.open(data.publicUrl, '_blank')
             }
           }
