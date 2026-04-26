@@ -31,6 +31,11 @@ function GlobalPinModal({ isOpen, onClose }) {
       setPin('')
       setError('')
       onClose()
+      
+      // 약간의 지연 후 알림창 띄우기 (모달이 닫히는 애니메이션을 방해하지 않도록)
+      setTimeout(() => {
+        alert(`관리자 인증이 완료되었습니다!\n\n관리자는 다양한 질문, 공지, 성경읽기 내용에 대한 추가, 수정, 삭제 권한을 가집니다.\n주보 PDF에 파일을 등록하면 구 파일은 갱신됩니다.\n주보 PDF의 파일명은 자동으로 '전주옛길교회_주보_도래하는 주일 날짜' 형식으로 정해집니다.`)
+      }, 100)
     } else {
       setError('비밀번호가 틀렸습니다.')
       setPin('')
