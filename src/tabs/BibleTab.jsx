@@ -182,10 +182,15 @@ function AdminForm({ onAddSuccess, editData, onCancelEdit }) {
 // ─── 메인 뷰어 컴포넌트 ──────────────────────────────────
 function MainViewer({ reading }) {
   const [isFloating, setIsFloating] = useState(false)
+  const [pipClosed, setPipClosed] = useState(false)
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
+  const [pipWidth, setPipWidth] = useState(() => Math.min(320, window.innerWidth - 48))
+  
   const observerRef = useRef(null)
   const dragStart = useRef({ x: 0, y: 0 })
+  const isResizing = useRef(false)
+  const resizeStart = useRef({ x: 0, width: 0 })
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -201,15 +206,17 @@ function MainViewer({ reading }) {
     }
   }, [])
 
-  // 플로팅 모드가 풀리면 위치 초기화
+  // 플로팅 모드가 풀리면 위치 및 상태 초기화
   useEffect(() => {
     if (!isFloating) {
       setPosition({ x: 0, y: 0 })
+      setPipClosed(false)
     }
   }, [isFloating])
 
+  // --- 드래그 로직 (이동) ---
   const handlePointerDown = (e) => {
-    if (!isFloating) return
+    if (!isFloating || pipClosed) return
     setIsDragging(true)
     dragStart.current = {
       x: e.clientX - position.x,
@@ -220,15 +227,52 @@ function MainViewer({ reading }) {
 
   const handlePointerMove = (e) => {
     if (!isDragging) return
-    setPosition({
-      x: e.clientX - dragStart.current.x,
-      y: e.clientY - dragStart.current.y,
-    })
+    let newX = e.clientX - dragStart.current.x
+    let newY = e.clientY - dragStart.current.y
+
+    // 화면 바깥으로 나가지 않도록 제약 (Constraints)
+    const pipHeight = pipWidth * (9 / 16) + 28 // 28 = 상단 핸들바 높이
+    const maxX = 24
+    const minX = -(window.innerWidth - pipWidth - 24)
+    const maxY = 24
+    const minY = -(window.innerHeight - pipHeight - 24)
+
+    newX = Math.max(minX, Math.min(newX, maxX))
+    newY = Math.max(minY, Math.min(newY, maxY))
+
+    setPosition({ x: newX, y: newY })
   }
 
   const handlePointerUp = (e) => {
     if (!isDragging) return
     setIsDragging(false)
+    e.currentTarget.releasePointerCapture(e.pointerId)
+  }
+
+  // --- 리사이즈 로직 (크기 조절) ---
+  const handleResizeDown = (e) => {
+    e.stopPropagation()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    isResizing.current = true
+    resizeStart.current = { x: e.clientX, width: pipWidth }
+  }
+
+  const handleResizeMove = (e) => {
+    if (!isResizing.current) return
+    // 좌측 하단 핸들이므로 왼쪽으로 마우스를 끌면(clientX 감소) 너비 증가
+    const deltaX = resizeStart.current.x - e.clientX
+    let newWidth = resizeStart.current.width + deltaX
+
+    const minW = 200
+    // 우측 기준 고정이므로 좌측 화면 바깥으로 넘어가지 않도록 최대 너비 제한
+    const maxW = Math.min(800, window.innerWidth - 24 + position.x)
+    
+    newWidth = Math.max(minW, Math.min(newWidth, maxW))
+    setPipWidth(newWidth)
+  }
+
+  const handleResizeUp = (e) => {
+    isResizing.current = false
     e.currentTarget.releasePointerCapture(e.pointerId)
   }
 
@@ -251,46 +295,69 @@ function MainViewer({ reading }) {
           {videoId ? (
             <div
               className={
-                isFloating
-                  ? "fixed z-50 shadow-2xl rounded-xl overflow-hidden border-4 border-white bg-slate-900 flex flex-col"
+                isFloating && !pipClosed
+                  ? "fixed z-50 shadow-2xl rounded-xl overflow-hidden border border-slate-700 bg-slate-900 flex flex-col ring-4 ring-white/10"
                   : "absolute inset-0 w-full h-full"
               }
               style={
-                isFloating
+                isFloating && !pipClosed
                   ? {
                       bottom: '24px',
                       right: '24px',
-                      width: 'min(320px, 85vw)',
+                      width: `${pipWidth}px`,
                       transform: `translate(${position.x}px, ${position.y}px)`,
                       touchAction: 'none', // 드래그 중 화면 스크롤 방지
-                      transition: isDragging ? 'none' : 'width 0.3s ease',
+                      transition: isDragging || isResizing.current ? 'none' : 'width 0.1s ease-out',
                     }
                   : { transform: 'none' }
               }
             >
-              {/* 드래그 핸들 (플로팅 상태에서만 보임) */}
+              {/* 드래그 핸들바 및 닫기 버튼 (플로팅 상태에서만 보임) */}
               <div
-                className={`w-full bg-slate-800 flex items-center justify-center cursor-move shrink-0 ${
-                  isFloating ? 'h-7 opacity-100' : 'h-0 opacity-0 hidden'
+                className={`w-full bg-slate-800 flex items-center justify-between cursor-move shrink-0 px-2 select-none ${
+                  isFloating && !pipClosed ? 'h-7 opacity-100' : 'h-0 opacity-0 hidden'
                 }`}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
                 onPointerCancel={handlePointerUp}
               >
+                <div className="w-6" /> {/* 가운데 정렬용 여백 */}
                 <div className="w-10 h-1.5 bg-slate-500 rounded-full" />
+                <button
+                  onClick={(e) => { e.stopPropagation(); setPipClosed(true); }}
+                  onPointerDown={(e) => e.stopPropagation()} // 클릭 시 드래그 방지
+                  className="w-6 h-6 flex items-center justify-center text-stone-400 hover:text-white rounded hover:bg-slate-700 transition-colors"
+                  title="플로팅 영상 닫기"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
               </div>
 
               {/* 실제 영상 영역 */}
-              <div className={`relative w-full ${isFloating ? 'aspect-video' : 'h-full'}`}>
+              <div className={`relative w-full ${isFloating && !pipClosed ? 'aspect-video' : 'h-full'}`}>
                 <iframe
-                  className="absolute top-0 left-0 w-full h-full"
+                  className="absolute top-0 left-0 w-full h-full pointer-events-auto"
                   src={`https://www.youtube.com/embed/${videoId}`}
                   title="YouTube video player"
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                 />
+                
+                {/* 크기 조절(리사이즈) 핸들 - 좌측 하단에 배치 */}
+                {isFloating && !pipClosed && (
+                  <div
+                    className="absolute bottom-0 left-0 w-8 h-8 cursor-sw-resize flex items-end justify-start p-1.5 touch-none"
+                    onPointerDown={handleResizeDown}
+                    onPointerMove={handleResizeMove}
+                    onPointerUp={handleResizeUp}
+                    onPointerCancel={handleResizeUp}
+                    title="크기 조절"
+                  >
+                    <svg className="w-4 h-4 text-white/70 rotate-90 drop-shadow-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
