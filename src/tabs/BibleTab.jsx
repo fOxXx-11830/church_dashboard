@@ -195,7 +195,7 @@ function MainViewer({ reading }) {
     <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden flex flex-col md:flex-row">
       {/* 왼쪽: 유튜브 영상 */}
       <div className="w-full md:w-1/2 bg-slate-900 shrink-0">
-        <div className="relative w-full h-0 pb-[56.25%] md:pb-[100%] lg:pb-[56.25%]">
+        <div className="relative w-full aspect-video">
           {videoId ? (
             <iframe
               className="absolute top-0 left-0 w-full h-full"
