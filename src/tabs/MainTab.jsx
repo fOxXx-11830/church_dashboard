@@ -118,7 +118,7 @@ function WeeklyBirthdays({ birthdays }) {
     <div className="bg-gradient-to-r from-pink-100 to-rose-100 border border-pink-200 rounded-xl px-5 py-4 flex items-center gap-3 shadow-sm">
       <span className="text-xl animate-bounce">🎉</span>
       <p className="text-sm font-bold text-pink-700">
-        금주의 생일: <span className="font-medium">{birthdayText}</span>
+        금주의 생일자: <span className="font-medium">{birthdayText}</span>
       </p>
     </div>
   )
@@ -286,6 +286,7 @@ function MainTab() {
       .eq('category', 'birthday')
       .gte('start', startOfWeek.toISOString())
       .lte('start', endOfWeek.toISOString())
+      .order('start', { ascending: true })
 
     if (data) setBirthdays(data)
   }
