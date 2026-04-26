@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
-import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import { supabase } from '../supabase'
 
@@ -440,18 +439,15 @@ function ScheduleTab() {
       {/* 달력 영역 */}
       <div className="bg-white p-4 md:p-6 rounded-2xl border border-stone-200 shadow-sm overflow-hidden custom-calendar-wrapper">
         <FullCalendar
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          plugins={[dayGridPlugin, interactionPlugin]}
           initialView="dayGridMonth"
           headerToolbar={{
             left: 'prev,next today',
             center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            right: ''
           }}
           buttonText={{
-            today: '오늘',
-            month: '월',
-            week: '주',
-            day: '일'
+            today: '오늘'
           }}
           locale="ko"
           events={events}
