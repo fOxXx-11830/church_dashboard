@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 
 // ─── 유틸: 유튜브 ID 추출 ────────────────────────────────
@@ -10,6 +10,7 @@ function getYouTubeID(url) {
 }
 
 // ─── 관리자 등록/수정 폼 ──────────────────────────────────
+// ... (이하 AdminForm 코드는 그대로 유지)
 function AdminForm({ onAddSuccess, editData, onCancelEdit }) {
   const [day, setDay] = useState('')
   const [subtitle, setSubtitle] = useState('')
@@ -180,6 +181,27 @@ function AdminForm({ onAddSuccess, editData, onCancelEdit }) {
 
 // ─── 메인 뷰어 컴포넌트 ──────────────────────────────────
 function MainViewer({ reading }) {
+  const [isFloating, setIsFloating] = useState(false)
+  const observerRef = useRef(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // 영상 컨테이너가 화면 밖으로 나가면(isIntersecting === false) 플로팅 모드 켬
+        setIsFloating(!entry.isIntersecting)
+      },
+      { threshold: 0 } // 조금이라도 나가면 트리거
+    )
+
+    if (observerRef.current) {
+      observer.observe(observerRef.current)
+    }
+
+    return () => {
+      if (observerRef.current) observer.unobserve(observerRef.current)
+    }
+  }, [])
+
   if (!reading) {
     return (
       <div className="bg-white rounded-2xl border border-stone-200 p-12 text-center text-stone-400">
@@ -192,32 +214,18 @@ function MainViewer({ reading }) {
   const videoId = getYouTubeID(reading.youtube_url)
 
   return (
-    <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden flex flex-col">
-      {/* 윗부분: 내용 영역 (본문을 넓게 씀) */}
-      <div className="w-full p-6 md:p-8 flex flex-col">
-        <div className="mb-6 border-b border-stone-100 pb-4">
-          <span className="inline-block px-3 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-full mb-3">
-            제 {reading.day} 일차
-          </span>
-          <h2 className="text-xl md:text-2xl font-bold text-slate-800 leading-snug">
-            {reading.subtitle}
-          </h2>
-        </div>
-
-        {/* 스크롤 제한을 풀고 텍스트가 자연스럽게 펼쳐지도록 수정 */}
-        <div className="w-full">
-          <p className="text-slate-600 text-sm md:text-base leading-loose whitespace-pre-wrap font-serif tracking-wide">
-            {reading.content}
-          </p>
-        </div>
-      </div>
-
-      {/* 아랫부분: 유튜브 영상 (최하단 배치) */}
-      <div className="w-full bg-slate-900 border-t border-stone-200">
-        <div className="relative w-full aspect-video mx-auto max-w-4xl">
+    <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden flex flex-col relative">
+      {/* 윗부분: 유튜브 영상 (최상단 배치 & PiP 스크롤 감지) */}
+      <div className="w-full bg-slate-900 border-b border-stone-200">
+        {/* 이 div의 높이가 유지되어야 플로팅 시 글이 위로 점프하지 않음 */}
+        <div ref={observerRef} className="relative w-full aspect-video mx-auto max-w-4xl">
           {videoId ? (
             <iframe
-              className="absolute top-0 left-0 w-full h-full"
+              className={
+                isFloating
+                  ? "fixed bottom-6 right-6 w-[280px] sm:w-[320px] aspect-video shadow-2xl rounded-xl z-50 animate-in slide-in-from-bottom-5 border-4 border-white"
+                  : "absolute top-0 left-0 w-full h-full"
+              }
               src={`https://www.youtube.com/embed/${videoId}`}
               title="YouTube video player"
               frameBorder="0"
@@ -230,6 +238,24 @@ function MainViewer({ reading }) {
               <span className="text-xs">유튜브 영상이 없습니다</span>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* 아랫부분: 내용 영역 */}
+      <div className="w-full p-6 md:p-8 flex flex-col">
+        <div className="mb-6 border-b border-stone-100 pb-4">
+          <span className="inline-block px-3 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-full mb-3">
+            제 {reading.day} 일차
+          </span>
+          <h2 className="text-xl md:text-2xl font-bold text-slate-800 leading-snug">
+            {reading.subtitle}
+          </h2>
+        </div>
+
+        <div className="w-full">
+          <p className="text-slate-600 text-sm md:text-base leading-loose whitespace-pre-wrap font-serif tracking-wide">
+            {reading.content}
+          </p>
         </div>
       </div>
     </div>
