@@ -1,21 +1,17 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
+import { supabase } from '../supabase'
 
-// ─── 상수 ────────────────────────────────────────────────
+// ─── 상수 및 유틸리티 ──────────────────────────────────────
 const DAY_KO = ['주일', '월', '화', '수', '목', '금', '토']
 
-const DUMMY_NEWS = [
-  { id: 1, date: '2026.04.27', title: '5월 가정의 달 특별 예배 안내', badge: '예배' },
-  { id: 2, date: '2026.04.25', title: '2026년 상반기 교회 수련회 참가 신청 안내', badge: '행사' },
-  { id: 3, date: '2026.04.20', title: '교회 주차 봉사자 모집 공고', badge: '안내' },
-]
-
-const BADGE_STYLE = {
-  '예배': 'bg-blue-100 text-blue-700 border-blue-200',
-  '행사': 'bg-amber-100 text-amber-700 border-amber-200',
-  '안내': 'bg-stone-100 text-stone-600 border-stone-200',
+const NEWS_CATEGORIES = {
+  notice: { label: '안내', style: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+  event: { label: '행사', style: 'bg-blue-100 text-blue-700 border-blue-200' },
+  pastor: { label: '목사동정', style: 'bg-orange-100 text-orange-700 border-orange-200' },
+  prayer: { label: '기도', style: 'bg-stone-100 text-stone-600 border-stone-200' },
+  birthday: { label: '생일', style: 'bg-pink-100 text-pink-700 border-pink-200' },
 }
 
-// ─── 시간 포맷 함수 ───────────────────────────────────────
 function formatDateTime(date) {
   const year    = date.getFullYear()
   const month   = date.getMonth() + 1
@@ -27,130 +23,422 @@ function formatDateTime(date) {
   const min     = String(date.getMinutes()).padStart(2, '0')
   const sec     = String(date.getSeconds()).padStart(2, '0')
   return {
-    date: `${year}년 ${month}월 ${day}일 (${dayName})`,
-    time: `${ampm} ${h12}:${min}:${sec}`,
+    dateStr: `${year}년 ${month}월 ${day}일 (${dayName})`,
+    timeStr: `${ampm} ${h12}:${min}:${sec}`,
   }
 }
 
-// ─── 실시간 시계 컴포넌트 ─────────────────────────────────
+// ─── PIN 인증 모달 ─────────────────────────────────────────
+function PinModal({ isOpen, onClose, onSuccess }) {
+  const [pin, setPin] = useState('')
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (isOpen) {
+      setPin('')
+      setError('')
+    }
+  }, [isOpen])
+
+  if (!isOpen) return null
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (pin === '0000') {
+      onSuccess()
+    } else {
+      setError('비밀번호가 틀렸습니다.')
+      setPin('')
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 animate-in zoom-in-95 duration-200">
+        <h3 className="text-lg font-bold text-slate-800 mb-2">관리자 인증</h3>
+        <p className="text-sm text-stone-500 mb-5">관리자 PIN을 입력하세요.</p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="password"
+            maxLength={4}
+            value={pin}
+            onChange={(e) => { setPin(e.target.value.replace(/[^0-9]/g, '')); setError('') }}
+            placeholder="4자리 숫자"
+            className="w-full text-center tracking-widest text-xl px-4 py-3 border border-stone-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none"
+            autoFocus
+          />
+          {error && <p className="text-xs text-rose-500 font-medium text-center">{error}</p>}
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-stone-200 text-stone-600 font-medium hover:bg-stone-50">취소</button>
+            <button type="submit" disabled={pin.length < 4} className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white font-medium hover:bg-amber-600 disabled:opacity-50">확인</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ─── 실시간 시계 컴포넌트 ──────────────────────────────────
 function LiveClock() {
   const [now, setNow] = useState(new Date())
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000)
-    return () => clearInterval(timer)   // 언마운트 시 정리
+    return () => clearInterval(timer)
   }, [])
 
-  const { date, time } = formatDateTime(now)
+  const { dateStr, timeStr } = formatDateTime(now)
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-stone-200 px-8 py-10 text-center select-none">
-      <p className="text-xs font-semibold text-stone-400 tracking-[0.25em] uppercase mb-4">
-        현재 시각
-      </p>
-      {/* 시간 — 큰 숫자 */}
-      <p className="text-6xl font-light text-slate-700 tracking-widest tabular-nums">
-        {time}
-      </p>
-      {/* 날짜 */}
-      <p className="text-stone-400 mt-3 text-base tracking-wide">
-        {date}
+    <div className="bg-white rounded-2xl shadow-sm border border-stone-200 px-8 py-10 text-center select-none relative overflow-hidden">
+      <p className="text-xs font-semibold text-stone-400 tracking-[0.25em] uppercase mb-4">현재 시각</p>
+      <p className="text-5xl md:text-6xl font-light text-slate-700 tracking-widest tabular-nums">{timeStr}</p>
+      <p className="text-stone-400 mt-3 text-sm md:text-base tracking-wide">{dateStr}</p>
+    </div>
+  )
+}
+
+// ─── 주간 생일자 요약 바 ───────────────────────────────────
+function WeeklyBirthdays({ birthdays }) {
+  if (!birthdays || birthdays.length === 0) {
+    return (
+      <div className="bg-pink-50 border border-pink-100 rounded-xl px-5 py-4 flex items-center justify-center gap-2">
+        <span className="text-lg">🎂</span>
+        <span className="text-sm font-medium text-pink-400">이번 주 생일자가 없습니다.</span>
+      </div>
+    )
+  }
+
+  const birthdayText = birthdays.map(b => {
+    const d = new Date(b.start)
+    return `${b.title}(${d.getDate()}일)`
+  }).join(', ')
+
+  return (
+    <div className="bg-gradient-to-r from-pink-100 to-rose-100 border border-pink-200 rounded-xl px-5 py-4 flex items-center gap-3 shadow-sm">
+      <span className="text-xl animate-bounce">🎉</span>
+      <p className="text-sm font-bold text-pink-700">
+        금주의 생일: <span className="font-medium">{birthdayText}</span>
       </p>
     </div>
   )
 }
 
-// ─── 히어로 배너 컴포넌트 ─────────────────────────────────
-function VerseBanner() {
+// ─── 말씀 및 소식 폼 모달들 ─────────────────────────────────
+function VerseFormModal({ isOpen, onClose, onSaved, initialData }) {
+  const [content, setContent] = useState('')
+  const [reference, setReference] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (isOpen) {
+      setContent(initialData?.content || '')
+      setReference(initialData?.reference || '')
+    }
+  }, [isOpen, initialData])
+
+  if (!isOpen) return null
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+    try {
+      const { error } = await supabase.from('weekly_verses').insert([{ content, reference }])
+      if (error) throw error
+      onSaved()
+      onClose()
+    } catch (err) {
+      alert('저장 오류가 발생했습니다.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
-    <div
-      className="relative rounded-2xl overflow-hidden shadow-lg border border-stone-200"
-      style={{
-        background: 'linear-gradient(135deg, #fdfcf9 0%, #f5f0e6 45%, #ede8db 100%)',
-      }}
-    >
-      {/* 좌측 골드 세로 라인 장식 */}
-      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-amber-400 via-amber-500 to-amber-300 rounded-l-2xl" />
-
-      {/* 배경 수묵화 느낌 원형 장식 */}
-      <div className="absolute -top-8 -right-8 w-48 h-48 rounded-full opacity-10"
-        style={{ background: 'radial-gradient(circle, #c4a052 0%, transparent 70%)' }} />
-      <div className="absolute -bottom-10 -left-4 w-36 h-36 rounded-full opacity-10"
-        style={{ background: 'radial-gradient(circle, #a07840 0%, transparent 70%)' }} />
-
-      <div className="px-10 py-12 pl-12 relative">
-        {/* 뱃지 */}
-        <span className="inline-flex items-center gap-1.5 bg-amber-600/10 text-amber-700 text-xs font-bold
-          px-3 py-1.5 rounded-full tracking-widest border border-amber-400/30 mb-6">
-          ✦ 금주의 암송 말씀
-        </span>
-
-        {/* 오프닝 따옴표 */}
-        <div className="text-5xl text-amber-400/60 font-serif leading-none mb-2 select-none">
-          "
-        </div>
-
-        {/* 말씀 본문 — 핵심 타이포그래피 */}
-        <blockquote
-          className="text-2xl text-slate-700 leading-[1.85] tracking-wide max-w-2xl"
-          style={{ fontFamily: '"Noto Serif KR", "Noto Sans KR", Georgia, serif' }}
-        >
-          여호와는 나의 목자시니 내게 부족함이 없으리로다
-        </blockquote>
-
-        {/* 클로징 따옴표 + 출처 — 우측 하단 정렬 */}
-        <div className="flex items-end justify-between mt-5">
-          <div className="text-5xl text-amber-400/60 font-serif leading-none select-none self-end">
-            "
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+        <h3 className="text-lg font-bold text-slate-800 mb-4">금주의 암송 말씀 등록</h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">말씀 본문</label>
+            <textarea required rows={3} value={content} onChange={(e) => setContent(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none resize-none" placeholder="여호와는 나의 목자시니..."></textarea>
           </div>
-          <div className="text-right">
-            <p className="text-amber-700 font-semibold text-sm tracking-widest">
-              — 시편 23:1 —
-            </p>
-            <p className="text-stone-400 text-xs mt-0.5 tracking-wide">Psalms 23:1</p>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">출처 (성경구절)</label>
+            <input required type="text" value={reference} onChange={(e) => setReference(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none" placeholder="예: 시편 23:1" />
           </div>
-        </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-lg border border-stone-200 text-stone-600 text-sm font-medium hover:bg-stone-50">취소</button>
+            <button type="submit" disabled={submitting} className="px-5 py-2.5 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50">저장</button>
+          </div>
+        </form>
       </div>
     </div>
   )
 }
 
-// ─── 메인 탭 ─────────────────────────────────────────────
+function NewsFormModal({ isOpen, onClose, onSaved, editData }) {
+  const [title, setTitle] = useState('')
+  const [category, setCategory] = useState('notice')
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (isOpen) {
+      setTitle(editData?.title || '')
+      setCategory(editData?.category || 'notice')
+    }
+  }, [isOpen, editData])
+
+  if (!isOpen) return null
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+    try {
+      const payload = { title, category }
+      if (editData) {
+        await supabase.from('church_news').update(payload).eq('id', editData.id)
+      } else {
+        await supabase.from('church_news').insert([payload])
+      }
+      onSaved()
+      onClose()
+    } catch (err) {
+      alert('저장 오류가 발생했습니다.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!window.confirm('정말 삭제하시겠습니까?')) return
+    try {
+      await supabase.from('church_news').delete().eq('id', editData.id)
+      onSaved()
+      onClose()
+    } catch (err) {
+      alert('삭제 오류가 발생했습니다.')
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+        <h3 className="text-lg font-bold text-slate-800 mb-4">{editData ? '소식 수정' : '소식 등록'}</h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">카테고리</label>
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none">
+              {Object.entries(NEWS_CATEGORIES).map(([k, v]) => (
+                <option key={k} value={k}>{v.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">제목</label>
+            <input required type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none" placeholder="소식 내용을 입력하세요" />
+          </div>
+          <div className="flex justify-between items-center pt-2">
+            {editData ? (
+              <button type="button" onClick={handleDelete} className="px-4 py-2.5 rounded-lg border border-rose-200 text-rose-500 text-sm font-medium hover:bg-rose-50">삭제</button>
+            ) : <div />}
+            <div className="flex gap-2">
+              <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-lg border border-stone-200 text-stone-600 text-sm font-medium hover:bg-stone-50">취소</button>
+              <button type="submit" disabled={submitting} className="px-5 py-2.5 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50">저장</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ─── 메인 탭 (통합) ─────────────────────────────────────────
 function MainTab() {
+  const [verse, setVerse] = useState({ content: '여호와는 나의 목자시니 내게 부족함이 없으리로다', reference: '시편 23:1' })
+  const [birthdays, setBirthdays] = useState([])
+  const [news, setNews] = useState([])
+
+  // 모달 제어 상태
+  const [pinModal, setPinModal] = useState({ isOpen: false, action: null, payload: null })
+  const [verseModal, setVerseModal] = useState({ isOpen: false, initialData: null })
+  const [newsModal, setNewsModal] = useState({ isOpen: false, editData: null })
+
+  const fetchVerse = async () => {
+    const { data } = await supabase.from('weekly_verses').select('*').order('created_at', { ascending: false }).limit(1).single()
+    if (data) setVerse(data)
+  }
+
+  const fetchBirthdays = async () => {
+    const now = new Date()
+    const dayOfWeek = now.getDay()
+    const startOfWeek = new Date(now)
+    startOfWeek.setDate(now.getDate() - dayOfWeek)
+    startOfWeek.setHours(0, 0, 0, 0)
+    
+    const endOfWeek = new Date(startOfWeek)
+    endOfWeek.setDate(startOfWeek.getDate() + 6)
+    endOfWeek.setHours(23, 59, 59, 999)
+
+    const { data } = await supabase
+      .from('church_events')
+      .select('*')
+      .eq('category', 'birthday')
+      .gte('start', startOfWeek.toISOString())
+      .lte('start', endOfWeek.toISOString())
+
+    if (data) setBirthdays(data)
+  }
+
+  const fetchNews = async () => {
+    const { data } = await supabase.from('church_news').select('*').order('created_at', { ascending: false })
+    if (data) {
+      const sorted = [...data].sort((a, b) => {
+        if (a.category === 'birthday' && b.category !== 'birthday') return -1
+        if (a.category !== 'birthday' && b.category === 'birthday') return 1
+        return 0
+      })
+      setNews(sorted)
+    }
+  }
+
+  const loadAllData = () => {
+    fetchVerse()
+    fetchBirthdays()
+    fetchNews()
+  }
+
+  useEffect(() => {
+    loadAllData()
+  }, [])
+
+  // PIN 인증 핸들러
+  const handlePinSuccess = () => {
+    const { action, payload } = pinModal
+    setPinModal({ isOpen: false, action: null, payload: null })
+
+    if (action === 'edit_verse') {
+      setVerseModal({ isOpen: true, initialData: verse })
+    } else if (action === 'add_news') {
+      setNewsModal({ isOpen: true, editData: null })
+    } else if (action === 'edit_news') {
+      setNewsModal({ isOpen: true, editData: payload })
+    }
+  }
+
   return (
     <div className="space-y-8">
+      {/* 1. 주간 생일자 요약 (이번 주) */}
+      <WeeklyBirthdays birthdays={birthdays} />
 
-      {/* ① 실시간 시계 */}
+      {/* 2. 실시간 시계 */}
       <LiveClock />
 
-      {/* ② 금주의 암송 말씀 히어로 배너 */}
-      <VerseBanner />
+      {/* 3. 금주의 암송 말씀 */}
+      <div className="relative rounded-2xl overflow-hidden shadow-lg border border-stone-200 group"
+        style={{ background: 'linear-gradient(135deg, #fdfcf9 0%, #f5f0e6 45%, #ede8db 100%)' }}
+      >
+        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-amber-400 via-amber-500 to-amber-300 rounded-l-2xl" />
+        <div className="absolute -top-8 -right-8 w-48 h-48 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #c4a052 0%, transparent 70%)' }} />
+        <div className="absolute -bottom-10 -left-4 w-36 h-36 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #a07840 0%, transparent 70%)' }} />
 
-      {/* ③ 교회 소식 — 기존 유지 */}
-      <div>
-        <h2 className="text-base font-bold text-slate-700 mb-4 flex items-center gap-2.5">
-          <span className="w-1 h-5 bg-amber-500 rounded-full inline-block" />
-          교회 소식
-        </h2>
-        <div className="space-y-3">
-          {DUMMY_NEWS.map((item) => (
-            <div
-              key={item.id}
-              className="bg-white rounded-xl border border-stone-200 shadow-sm px-5 py-4 flex items-center gap-4 hover:border-amber-300 hover:shadow-md transition-all duration-200 cursor-pointer group"
+        <div className="px-8 py-10 md:px-12 md:py-12 relative">
+          <div className="flex items-center justify-between mb-6">
+            <span className="inline-flex items-center gap-1.5 bg-amber-600/10 text-amber-700 text-xs font-bold px-3 py-1.5 rounded-full tracking-widest border border-amber-400/30">
+              ✦ 금주의 암송 말씀
+            </span>
+            <button 
+              onClick={() => setPinModal({ isOpen: true, action: 'edit_verse', payload: null })}
+              className="p-2 rounded-full text-amber-600 hover:bg-amber-100 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+              title="말씀 수정"
             >
-              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0 ${BADGE_STYLE[item.badge]}`}>
-                {item.badge}
-              </span>
-              <span className="flex-1 text-slate-700 font-medium group-hover:text-slate-900 transition-colors">
-                {item.title}
-              </span>
-              <span className="text-xs text-stone-400 shrink-0">{item.date}</span>
-              <span className="text-stone-300 group-hover:text-amber-400 transition-colors shrink-0">›</span>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+            </button>
+          </div>
+
+          <div className="text-5xl text-amber-400/60 font-serif leading-none mb-2 select-none">"</div>
+          <blockquote className="text-xl md:text-2xl text-slate-700 leading-[1.85] tracking-wide max-w-2xl font-serif whitespace-pre-wrap">
+            {verse.content}
+          </blockquote>
+          <div className="flex items-end justify-between mt-5">
+            <div className="text-5xl text-amber-400/60 font-serif leading-none select-none self-end">"</div>
+            <div className="text-right">
+              <p className="text-amber-700 font-semibold text-sm tracking-widest">— {verse.reference} —</p>
             </div>
-          ))}
+          </div>
         </div>
       </div>
 
+      {/* 4. 교회 소식 */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-bold text-slate-700 flex items-center gap-2.5">
+            <span className="w-1 h-5 bg-amber-500 rounded-full inline-block" />
+            교회 소식
+          </h2>
+          <button 
+            onClick={() => setPinModal({ isOpen: true, action: 'add_news', payload: null })}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition-colors flex items-center gap-1"
+          >
+            <span>+</span> 소식 추가
+          </button>
+        </div>
+        
+        {news.length === 0 ? (
+          <div className="bg-white rounded-xl border border-stone-200 p-8 text-center text-stone-400 text-sm">
+            등록된 교회 소식이 없습니다.
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden flex flex-col max-h-[400px]">
+            <div className="overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-stone-200 scrollbar-track-transparent">
+              {news.map((item) => {
+                const cat = NEWS_CATEGORIES[item.category] || NEWS_CATEGORIES.notice
+                const d = new Date(item.created_at)
+                const dateStr = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`
+                
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => setPinModal({ isOpen: true, action: 'edit_news', payload: item })}
+                    className="px-4 py-3 rounded-lg flex flex-col sm:flex-row sm:items-center gap-3 hover:bg-stone-50 transition-colors cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3 flex-1 overflow-hidden">
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded border shrink-0 ${cat.style}`}>
+                        {cat.label}
+                      </span>
+                      <span className="text-slate-700 font-medium group-hover:text-amber-600 transition-colors truncate">
+                        {item.category === 'birthday' ? `🎉 ${item.title}` : item.title}
+                      </span>
+                    </div>
+                    <span className="text-xs text-stone-400 shrink-0 font-medium tracking-wide sm:text-right">
+                      {dateStr}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 모달 */}
+      <PinModal
+        isOpen={pinModal.isOpen}
+        onClose={() => setPinModal({ isOpen: false, action: null, payload: null })}
+        onSuccess={handlePinSuccess}
+      />
+      <VerseFormModal
+        isOpen={verseModal.isOpen}
+        initialData={verseModal.initialData}
+        onClose={() => setVerseModal({ isOpen: false, initialData: null })}
+        onSaved={fetchVerse}
+      />
+      <NewsFormModal
+        isOpen={newsModal.isOpen}
+        editData={newsModal.editData}
+        onClose={() => setNewsModal({ isOpen: false, editData: null })}
+        onSaved={fetchNews}
+      />
     </div>
   )
 }
