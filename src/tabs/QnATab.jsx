@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useAdmin } from '../AdminContext'
+import DOMPurify from 'dompurify'
 
 // ─── 날짜 포맷 ────────────────────────────────────────────
 function formatDate(isoString) {
@@ -105,13 +106,13 @@ function AccordionItem({ item, isOpen, onToggle, onEdit, onDelete, onAnswer }) {
           <div className="px-5 pb-5 border-t border-stone-100">
             <div className="flex items-start gap-3 pt-4">
               <span className="shrink-0 w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center mt-0.5">Q</span>
-              <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{item.content}</p>
+              <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{DOMPurify.sanitize(item.content)}</p>
             </div>
 
             <div className="flex items-start gap-3 mt-4">
               <span className="shrink-0 w-6 h-6 rounded-full bg-slate-700 text-white text-xs font-bold flex items-center justify-center mt-0.5">A</span>
               {item.answer ? (
-                <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{item.answer}</p>
+                <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{DOMPurify.sanitize(item.answer)}</p>
               ) : (
                 <p className="text-sm text-stone-400 italic">아직 답변이 등록되지 않았습니다.</p>
               )}
@@ -141,6 +142,7 @@ function QnATab() {
   const [openId, setOpenId] = useState(null)
   const [error, setError] = useState('')
   const [deleteError, setDeleteError] = useState('')
+  const [cooldown, setCooldown] = useState(0) // 도배 방지 쿨타임 (초)
 
   const [adminModal, setAdminModal] = useState({ isOpen: false, data: null, mode: 'answer' }) // mode: 'answer' | 'edit'
 
@@ -168,18 +170,52 @@ function QnATab() {
     return () => { supabase.removeChannel(channel) }
   }, [])
 
+  // 도배 방지 쿨타임 체크 (로컬스토리지 기반)
+  useEffect(() => {
+    const lastPostTime = localStorage.getItem('lastQnAPostTime')
+    if (lastPostTime) {
+      const timeDiff = Math.floor((Date.now() - parseInt(lastPostTime, 10)) / 1000)
+      if (timeDiff < 60) {
+        setCooldown(60 - timeDiff)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    let timer
+    if (cooldown > 0) {
+      timer = setInterval(() => setCooldown(c => c - 1), 1000)
+    }
+    return () => clearInterval(timer)
+  }, [cooldown])
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+
+    if (cooldown > 0) {
+      setError(`도배 방지를 위해 ${cooldown}초 후에 다시 질문할 수 있습니다.`)
+      return
+    }
+
     if (!nickname.trim()) { setError('닉네임을 입력해 주세요.'); return }
     if (!content.trim())  { setError('질문 내용을 입력해 주세요.'); return }
 
     setSubmitting(true)
     try {
-      const { error: dbError } = await supabase.from('questions').insert([{ nickname: nickname.trim(), content: content.trim() }])
+      // DOMPurify로 XSS 방어 처리 후 DB에 저장
+      const cleanNickname = DOMPurify.sanitize(nickname.trim())
+      const cleanContent = DOMPurify.sanitize(content.trim())
+
+      const { error: dbError } = await supabase.from('questions').insert([{ nickname: cleanNickname, content: cleanContent }])
       if (dbError) throw dbError
       setNickname('')
       setContent('')
+      
+      // 글 작성 성공 시 60초 쿨타임 부여
+      localStorage.setItem('lastQnAPostTime', Date.now().toString())
+      setCooldown(60)
+
       fetchQuestions()
     } catch (err) {
       console.error('등록 오류:', err.message)
@@ -236,8 +272,8 @@ function QnATab() {
           />
           {error && <p className="text-xs text-rose-500 font-medium">{error}</p>}
           <div className="flex justify-end">
-            <button type="submit" disabled={submitting} className="bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white text-sm font-medium px-6 py-2.5 rounded-lg transition-colors duration-150 flex items-center gap-2">
-              {submitting ? '등록 중...' : '질문 등록'}
+            <button type="submit" disabled={submitting || cooldown > 0} className="bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white text-sm font-medium px-6 py-2.5 rounded-lg transition-colors duration-150 flex items-center gap-2">
+              {submitting ? '등록 중...' : (cooldown > 0 ? `${cooldown}초 대기` : '질문 등록')}
             </button>
           </div>
         </form>

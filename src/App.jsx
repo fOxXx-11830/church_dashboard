@@ -23,7 +23,9 @@ function GlobalPinModal({ isOpen, onClose }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (pin === '2656') {
+    // 환경 변수에서 PIN 번호를 가져와 검증 (기본값 설정 가능)
+    const adminPin = import.meta.env.VITE_ADMIN_PIN || '2656'
+    if (pin === adminPin) {
       setIsAdmin(true)
       setPin('')
       setError('')

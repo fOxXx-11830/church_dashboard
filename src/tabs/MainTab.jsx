@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useAdmin } from '../AdminContext'
+import DOMPurify from 'dompurify'
 
 // ─── 상수 및 유틸리티 ──────────────────────────────────────
 const DAY_KO = ['주일', '월', '화', '수', '목', '금', '토']
@@ -96,7 +97,9 @@ function VerseFormModal({ isOpen, onClose, onSaved, initialData }) {
     e.preventDefault()
     setSubmitting(true)
     try {
-      const { error } = await supabase.from('weekly_verses').insert([{ content, reference }])
+      const cleanContent = DOMPurify.sanitize(content)
+      const cleanRef = DOMPurify.sanitize(reference)
+      const { error } = await supabase.from('weekly_verses').insert([{ content: cleanContent, reference: cleanRef }])
       if (error) throw error
       onSaved()
       onClose()
@@ -150,7 +153,8 @@ function NewsFormModal({ isOpen, onClose, onSaved, editData }) {
     e.preventDefault()
     setSubmitting(true)
     try {
-      const payload = { title, category }
+      const cleanTitle = DOMPurify.sanitize(title)
+      const payload = { title: cleanTitle, category }
       if (editData) {
         await supabase.from('church_news').update(payload).eq('id', editData.id)
       } else {
@@ -313,12 +317,12 @@ function MainTab() {
 
           <div className="text-5xl text-amber-400/60 font-serif leading-none mb-2 select-none">"</div>
           <blockquote className="text-xl md:text-2xl text-slate-700 leading-[1.85] tracking-wide max-w-2xl font-serif whitespace-pre-wrap">
-            {verse.content}
+            {DOMPurify.sanitize(verse.content)}
           </blockquote>
           <div className="flex items-end justify-between mt-5">
             <div className="text-5xl text-amber-400/60 font-serif leading-none select-none self-end">"</div>
             <div className="text-right">
-              <p className="text-amber-700 font-semibold text-sm tracking-widest">— {verse.reference} —</p>
+              <p className="text-amber-700 font-semibold text-sm tracking-widest">— {DOMPurify.sanitize(verse.reference)} —</p>
             </div>
           </div>
         </div>
@@ -364,7 +368,7 @@ function MainTab() {
                         {cat.label}
                       </span>
                       <span className="text-slate-700 font-medium group-hover:text-amber-600 transition-colors truncate">
-                        {item.category === 'birthday' ? `🎉 ${item.title}` : item.title}
+                        {item.category === 'birthday' ? `🎉 ${DOMPurify.sanitize(item.title)}` : DOMPurify.sanitize(item.title)}
                       </span>
                     </div>
                     <span className="text-xs text-stone-400 shrink-0 font-medium tracking-wide sm:text-right">
