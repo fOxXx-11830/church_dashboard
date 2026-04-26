@@ -146,7 +146,9 @@ function AccordionItem({ item, isOpen, onToggle, onEdit, onDelete, onReply, onDe
               {/* 기존 단일 답변 렌더링 (하위 호환) */}
               {item.answer && (
                 <div className="flex items-start gap-3 bg-amber-50/50 p-3 rounded-xl border border-amber-200/50 shadow-sm">
-                  <span className="shrink-0 mt-0.5 w-6 h-6 rounded-full bg-slate-700 text-white text-[10px] font-bold flex items-center justify-center">목사님</span>
+                  <div className="shrink-0 mt-0.5 w-7 h-7 rounded-full overflow-hidden border border-amber-200 shadow-sm">
+                    <img src="/logo.jpg" alt="목사님" className="w-full h-full object-cover" />
+                  </div>
                   <div className="flex-1">
                     <p className="text-sm font-bold text-amber-800 mb-0.5 flex items-center gap-1.5">
                       황철민 목사 
@@ -160,9 +162,15 @@ function AccordionItem({ item, isOpen, onToggle, onEdit, onDelete, onReply, onDe
               {/* 다중 답변 렌더링 (answers 테이블) */}
               {answers.map(ans => (
                 <div key={ans.id} className={`flex items-start gap-3 p-3 rounded-xl ${ans.is_admin ? 'bg-amber-50/80 border border-amber-200/50 shadow-sm' : 'bg-stone-50 border border-stone-100'}`}>
-                  <span className={`shrink-0 mt-0.5 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${ans.is_admin ? 'bg-slate-700 text-white' : 'bg-stone-300 text-stone-600'}`}>
-                    {ans.is_admin ? '목사님' : 'A'}
-                  </span>
+                  {ans.is_admin ? (
+                    <div className="shrink-0 mt-0.5 w-7 h-7 rounded-full overflow-hidden border border-amber-200 shadow-sm">
+                      <img src="/logo.jpg" alt="목사님" className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <span className="shrink-0 mt-0.5 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold bg-stone-200 text-stone-500">
+                      A
+                    </span>
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm font-bold mb-0.5 flex items-center flex-wrap gap-1.5 ${ans.is_admin ? 'text-amber-800' : 'text-slate-700'}`}>
                       {ans.nickname}
