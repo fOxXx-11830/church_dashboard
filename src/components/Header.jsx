@@ -13,11 +13,11 @@ function Header({ activeTab, setActiveTab, tabs }) {
       {/* Logo Section */}
       <div className="flex items-center justify-center gap-3 py-4 border-b border-[#eaddb1]/30">
         <div className="relative w-12 h-12 md:w-14 md:h-14 rounded-xl overflow-hidden shadow-sm bg-white flex items-center justify-center border border-[#eaddb1]/50">
-          <img src="/logo.jpg" alt="열린교회 로고" className="w-full h-full object-cover" />
+          <img src="/logo.jpg" alt="전주옛길교회 로고" className="w-full h-full object-cover" />
         </div>
         <div>
           <h1 className="font-serif text-2xl md:text-3xl font-bold text-[#8a7258] tracking-wide">
-            열린교회
+            전주옛길교회
           </h1>
         </div>
       </div>
