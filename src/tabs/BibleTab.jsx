@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
+import { useAdmin } from '../AdminContext'
 
 // ─── 유틸: 유튜브 ID 추출 ────────────────────────────────
 function getYouTubeID(url) {
@@ -390,81 +391,11 @@ function MainViewer({ reading }) {
   )
 }
 
-// ─── 핀 인증 모달 ─────────────────────────────────────────
-function PinModal({ isOpen, onClose, onSuccess, actionType }) {
-  const [pin, setPin] = useState('')
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (isOpen) {
-      setPin('')
-      setError('')
-    }
-  }, [isOpen])
-
-  if (!isOpen) return null
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    // 하드코딩된 PIN 번호 검증
-    if (pin === '0000') {
-      onSuccess()
-      onClose()
-    } else {
-      setError('비밀번호가 틀렸습니다.')
-      setPin('')
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="p-6">
-          <h3 className="text-lg font-bold text-slate-800 mb-2">
-            관리자 인증
-          </h3>
-          <p className="text-sm text-stone-500 mb-5">
-            이 항목을 {actionType === 'edit' ? '수정' : '삭제'}하시려면 관리자 PIN 번호를 입력하세요.
-          </p>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <input
-              type="password"
-              maxLength={4}
-              value={pin}
-              onChange={(e) => {
-                setPin(e.target.value.replace(/[^0-9]/g, ''))
-                setError('')
-              }}
-              placeholder="4자리 숫자"
-              className="w-full text-center tracking-widest text-xl px-4 py-3 border border-stone-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none"
-              autoFocus
-            />
-            {error && <p className="text-xs text-rose-500 font-medium text-center">{error}</p>}
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 py-2.5 rounded-xl border border-stone-200 text-stone-600 font-medium hover:bg-stone-50 transition-colors"
-              >
-                취소
-              </button>
-              <button
-                type="submit"
-                disabled={pin.length < 4}
-                className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white font-medium hover:bg-amber-600 transition-colors disabled:opacity-50"
-              >
-                확인
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  )
-}
+// (기존 PinModal 관련 코드 제거)
 
 // ─── 성경읽기 탭 메인 ────────────────────────────────────
 function BibleTab() {
+  const { isAdmin } = useAdmin()
   const [readings, setReadings] = useState([])
   const [selectedReading, setSelectedReading] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -472,9 +403,6 @@ function BibleTab() {
   // 관리 기능 상태
   const [openMenuId, setOpenMenuId] = useState(null) // 어떤 항목의 메뉴가 열려있는지
   const [editingItem, setEditingItem] = useState(null)
-  
-  // PIN 모달 상태
-  const [pinModal, setPinModal] = useState({ isOpen: false, action: null, item: null })
 
   const fetchReadings = async () => {
     setLoading(true)
@@ -523,20 +451,12 @@ function BibleTab() {
     }
   }
 
-  // PIN 인증 성공 처리기
-  const handlePinSuccess = () => {
-    const { action, item } = pinModal
-    if (action === 'edit') {
-      setEditingItem(item)
-      setOpenMenuId(null)
-      // 화면 하단 관리자 폼으로 스크롤 이동
-      setTimeout(() => {
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
-      }, 100)
-    } else if (action === 'delete') {
-      setOpenMenuId(null)
-      handleDelete(item.id)
-    }
+  const handleEditClick = (item) => {
+    setEditingItem(item)
+    setOpenMenuId(null)
+    setTimeout(() => {
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+    }, 100)
   }
 
   return (
@@ -587,43 +507,43 @@ function BibleTab() {
                     </button>
 
                     {/* 연필 아이콘 / 액션 메뉴 토글 */}
-                    <div className="absolute top-2 right-2 flex items-center gap-1">
-                      {openMenuId === item.id ? (
-                        // 열린 상태: 수정/삭제 버튼
-                        <div className="flex items-center gap-1 bg-white/90 backdrop-blur rounded-lg px-1.5 py-1 shadow-sm border border-stone-200 animate-in fade-in slide-in-from-right-2 duration-200">
+                    {isAdmin && (
+                      <div className="absolute top-2 right-2 flex items-center gap-1">
+                        {openMenuId === item.id ? (
+                          <div className="flex items-center gap-1 bg-white/90 backdrop-blur rounded-lg px-1.5 py-1 shadow-sm border border-stone-200 animate-in fade-in slide-in-from-right-2 duration-200">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleEditClick(item); }}
+                              className="text-xs text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
+                            >
+                              수정
+                            </button>
+                            <div className="w-px h-3 bg-stone-300" />
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); handleDelete(item.id); }}
+                              className="text-xs text-rose-600 hover:bg-rose-50 px-2 py-1 rounded transition-colors"
+                            >
+                              삭제
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); }}
+                              className="ml-1 text-stone-400 hover:text-stone-600"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ) : (
                           <button
-                            onClick={(e) => { e.stopPropagation(); setPinModal({ isOpen: true, action: 'edit', item }); }}
-                            className="text-xs text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
+                            onClick={(e) => { e.stopPropagation(); setOpenMenuId(item.id); }}
+                            className="p-1.5 text-stone-400 hover:text-amber-600 hover:bg-amber-100 rounded-lg transition-colors"
+                            title="관리"
                           >
-                            수정
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
                           </button>
-                          <div className="w-px h-3 bg-stone-300" />
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setPinModal({ isOpen: true, action: 'delete', item }); }}
-                            className="text-xs text-rose-600 hover:bg-rose-50 px-2 py-1 rounded transition-colors"
-                          >
-                            삭제
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); }}
-                            className="ml-1 text-stone-400 hover:text-stone-600"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ) : (
-                        // 닫힌 상태: 연필 아이콘
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setOpenMenuId(item.id); }}
-                          className="p-1.5 text-stone-400 hover:text-amber-600 hover:bg-amber-100 rounded-lg transition-colors"
-                          title="관리"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -633,19 +553,13 @@ function BibleTab() {
       )}
 
       {/* 관리자 폼 */}
-      <AdminForm 
-        onAddSuccess={() => { fetchReadings(); setEditingItem(null); }} 
-        editData={editingItem}
-        onCancelEdit={() => setEditingItem(null)}
-      />
-
-      {/* PIN 인증 모달 */}
-      <PinModal
-        isOpen={pinModal.isOpen}
-        actionType={pinModal.action}
-        onClose={() => setPinModal({ ...pinModal, isOpen: false })}
-        onSuccess={handlePinSuccess}
-      />
+      {isAdmin && (
+        <AdminForm 
+          onAddSuccess={() => { fetchReadings(); setEditingItem(null); }} 
+          editData={editingItem}
+          onCancelEdit={() => setEditingItem(null)}
+        />
+      )}
 
       {/* 스크롤바 CSS 주입 */}
       <style dangerouslySetInnerHTML={{__html: `

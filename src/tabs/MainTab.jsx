@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import { useAdmin } from '../AdminContext'
 
 // ─── 상수 및 유틸리티 ──────────────────────────────────────
 const DAY_KO = ['주일', '월', '화', '수', '목', '금', '토']
@@ -28,55 +29,7 @@ function formatDateTime(date) {
   }
 }
 
-// ─── PIN 인증 모달 ─────────────────────────────────────────
-function PinModal({ isOpen, onClose, onSuccess }) {
-  const [pin, setPin] = useState('')
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (isOpen) {
-      setPin('')
-      setError('')
-    }
-  }, [isOpen])
-
-  if (!isOpen) return null
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    if (pin === '0000') {
-      onSuccess()
-    } else {
-      setError('비밀번호가 틀렸습니다.')
-      setPin('')
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 animate-in zoom-in-95 duration-200">
-        <h3 className="text-lg font-bold text-slate-800 mb-2">관리자 인증</h3>
-        <p className="text-sm text-stone-500 mb-5">관리자 PIN을 입력하세요.</p>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="password"
-            maxLength={4}
-            value={pin}
-            onChange={(e) => { setPin(e.target.value.replace(/[^0-9]/g, '')); setError('') }}
-            placeholder="4자리 숫자"
-            className="w-full text-center tracking-widest text-xl px-4 py-3 border border-stone-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none"
-            autoFocus
-          />
-          {error && <p className="text-xs text-rose-500 font-medium text-center">{error}</p>}
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-stone-200 text-stone-600 font-medium hover:bg-stone-50">취소</button>
-            <button type="submit" disabled={pin.length < 4} className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white font-medium hover:bg-amber-600 disabled:opacity-50">확인</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
+// (기존 PinModal 관련 코드 제거)
 
 // ─── 실시간 시계 컴포넌트 ──────────────────────────────────
 function LiveClock() {
@@ -255,12 +208,12 @@ function NewsFormModal({ isOpen, onClose, onSaved, editData }) {
 
 // ─── 메인 탭 (통합) ─────────────────────────────────────────
 function MainTab() {
+  const { isAdmin } = useAdmin()
   const [verse, setVerse] = useState({ content: '여호와는 나의 목자시니 내게 부족함이 없으리로다', reference: '시편 23:1' })
   const [birthdays, setBirthdays] = useState([])
   const [news, setNews] = useState([])
 
   // 모달 제어 상태
-  const [pinModal, setPinModal] = useState({ isOpen: false, action: null, payload: null })
   const [verseModal, setVerseModal] = useState({ isOpen: false, initialData: null })
   const [newsModal, setNewsModal] = useState({ isOpen: false, editData: null })
 
@@ -313,20 +266,6 @@ function MainTab() {
     loadAllData()
   }, [])
 
-  // PIN 인증 핸들러
-  const handlePinSuccess = () => {
-    const { action, payload } = pinModal
-    setPinModal({ isOpen: false, action: null, payload: null })
-
-    if (action === 'edit_verse') {
-      setVerseModal({ isOpen: true, initialData: verse })
-    } else if (action === 'add_news') {
-      setNewsModal({ isOpen: true, editData: null })
-    } else if (action === 'edit_news') {
-      setNewsModal({ isOpen: true, editData: payload })
-    }
-  }
-
   return (
     <div className="space-y-8">
       {/* 1. 주간 생일자 요약 (이번 주) */}
@@ -348,13 +287,15 @@ function MainTab() {
             <span className="inline-flex items-center gap-1.5 bg-amber-600/10 text-amber-700 text-xs font-bold px-3 py-1.5 rounded-full tracking-widest border border-amber-400/30">
               ✦ 금주의 암송 말씀
             </span>
-            <button 
-              onClick={() => setPinModal({ isOpen: true, action: 'edit_verse', payload: null })}
-              className="p-2 rounded-full text-amber-600 hover:bg-amber-100 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-              title="말씀 수정"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-            </button>
+            {isAdmin && (
+              <button 
+                onClick={() => setVerseModal({ isOpen: true, initialData: verse })}
+                className="p-2 rounded-full text-amber-600 hover:bg-amber-100 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                title="말씀 수정"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+              </button>
+            )}
           </div>
 
           <div className="text-5xl text-amber-400/60 font-serif leading-none mb-2 select-none">"</div>
@@ -377,12 +318,14 @@ function MainTab() {
             <span className="w-1 h-5 bg-amber-500 rounded-full inline-block" />
             교회 소식
           </h2>
-          <button 
-            onClick={() => setPinModal({ isOpen: true, action: 'add_news', payload: null })}
-            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition-colors flex items-center gap-1"
-          >
-            <span>+</span> 소식 추가
-          </button>
+          {isAdmin && (
+            <button 
+              onClick={() => setNewsModal({ isOpen: true, editData: null })}
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition-colors flex items-center gap-1"
+            >
+              <span>+</span> 소식 추가
+            </button>
+          )}
         </div>
         
         {news.length === 0 ? (
@@ -400,8 +343,8 @@ function MainTab() {
                 return (
                   <div
                     key={item.id}
-                    onClick={() => setPinModal({ isOpen: true, action: 'edit_news', payload: item })}
-                    className="px-4 py-3 rounded-lg flex flex-col sm:flex-row sm:items-center gap-3 hover:bg-stone-50 transition-colors cursor-pointer group"
+                    onClick={() => { if (isAdmin) setNewsModal({ isOpen: true, editData: item }) }}
+                    className={`px-4 py-3 rounded-lg flex flex-col sm:flex-row sm:items-center gap-3 transition-colors group ${isAdmin ? 'hover:bg-stone-50 cursor-pointer' : ''}`}
                   >
                     <div className="flex items-center gap-3 flex-1 overflow-hidden">
                       <span className={`text-[11px] font-bold px-2 py-0.5 rounded border shrink-0 ${cat.style}`}>
@@ -423,11 +366,6 @@ function MainTab() {
       </div>
 
       {/* 모달 */}
-      <PinModal
-        isOpen={pinModal.isOpen}
-        onClose={() => setPinModal({ isOpen: false, action: null, payload: null })}
-        onSuccess={handlePinSuccess}
-      />
       <VerseFormModal
         isOpen={verseModal.isOpen}
         initialData={verseModal.initialData}
